@@ -1,1 +1,0 @@
-export function getSeasonWindow(){return {start:new Date(),end:new Date()}};export function formatDate(d){return new Date(d).toLocaleDateString()}
