@@ -20,10 +20,10 @@ function Section({title, children, right}) {
 }
 
 export default function App(){
-  const [state, setState] = useState(loadState());
-  const [view, setView] = useState('match');
-  const [filter, setFilter] = useState('current');
-  const [matchForm, setMatchForm] = useState({
+  const [state, setState] = usestate(loadstate());
+  const [view, setView] = usestate('match');
+  const [filter, setFilter] = usestate('current');
+  const [matchForm, setMatchForm] = usestate({
     date: new Date().toISOString().slice(0,10),
     course: '',
     players: {
@@ -31,18 +31,18 @@ export default function App(){
       nicky: { score: 0, ctp:false, putt30:false, putt40:false, putt50:false, longPuttDistance:'', ob:0 },
     }
   });
-  const [bubblyResult, setBubblyResult] = useState(null);
-  const [assignTo, setAssignTo] = useState('jeffy');
+  const [bubblyResult, setBubblyResult] = usestate(null);
+  const [assignTo, setAssignTo] = usestate('jeffy');
 
   useEffect(() => {
     const copy = structuredClone(state);
     maybeAutoReset(copy, new Date());
-    saveState(copy);
-    setState(copy);
+    savestate(copy);
+    setstate(copy);
   }, []);
 
   useEffect(() => {
-    saveState(state);
+    savestate(state);
   }, [state]);
 
   const matches = useMemo(() => getMatchesByFilter(state, filter), [state, filter]);
@@ -58,8 +58,8 @@ export default function App(){
     };
     const copy = structuredClone(state);
     addMatch(copy, payload);
-    saveState(copy);
-    setState(copy);
+    savestate(copy);
+    setstate(copy);
     alert('Match saved.');
   }
 
@@ -68,8 +68,8 @@ export default function App(){
     const item = bubblyRandomPick(copy);
     if (!item) { alert('BUBBLY pool is empty.'); return; }
     applyBubblyAward(copy, item, assignTo);
-    saveState(copy);
-    setState(copy);
+    savestate(copy);
+    setstate(copy);
     setBubblyResult(item);
   }
 
@@ -100,8 +100,8 @@ export default function App(){
       history: JSON.parse(JSON.stringify(copy.bubbly.history))
     });
     resetBubbly(copy);
-    saveState(copy);
-    setState(copy);
+    savestate(copy);
+    setstate(copy);
   }
 
   return (
