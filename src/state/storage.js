@@ -1,0 +1,2 @@
+export function loadState(){return {matches:[],bubbly:{pool:[],history:[],tallies:{jeffy:{points:0,items:{}},nicky:{points:0,items:{}}}}}};export function saveState(){};export function addMatch(){};export function getMatchesByFilter(s){return s.matches};export function bubblyRandomPick(){return null};export function applyBubblyAward(){};export function wipeAll(){};export function maybeAutoReset(){};export function resetBubbly(){};
+
