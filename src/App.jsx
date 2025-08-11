@@ -1,13 +1,18 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { loadState, saveState, addMatch, getMatchesByFilter, bubblyRandomPick, applyBubblyAward, wipeAll, maybeAutoReset, resetBubbly } from './state/storage'
+import {
+  loadState, saveState,
+  addMatch, getMatchesByFilter,
+  bubblyRandomPick, applyBubblyAward,
+  wipeAll, maybeAutoReset, resetBubbly
+} from './state/storage'
 import { getSeasonWindow, formatDate } from './utils/date'
 
 const PLAYERS = [
   { id:'jeffy', name:'Jeffy' },
   { id:'nicky', name:'Nicky' },
-];
+]
 
-function Section({title, children, right}) {
+function Section({ title, children, right }) {
   return (
     <div className="card">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'.5rem'}}>
@@ -19,35 +24,53 @@ function Section({title, children, right}) {
   )
 }
 
-export default function App(){
-  const [state, setState] = usestate(loadstate());
-  const [view, setView] = usestate('match');
-  const [filter, setFilter] = usestate('current');
-  const [matchForm, setMatchForm] = usestate({
+export default function App() {
+  const [state, setState] = useState(loadState())
+  const [view, setView] = useState('match')   // match | history | summary | bubbly | settings
+  const [filter, setFilter] = useState('current') // current | all
+
+  const [matchForm, setMatchForm] = useState({
     date: new Date().toISOString().slice(0,10),
     course: '',
     players: {
       jeffy: { score: 0, ctp:false, putt30:false, putt40:false, putt50:false, longPuttDistance:'', ob:0 },
       nicky: { score: 0, ctp:false, putt30:false, putt40:false, putt50:false, longPuttDistance:'', ob:0 },
     }
-  });
-  const [bubblyResult, setBubblyResult] = usestate(null);
-  const [assignTo, setAssignTo] = usestate('jeffy');
+  })
 
+  const [bubblyResult, setBubblyResult] = useState(null)
+  const [assignTo, setAssignTo] = useState('jeffy')
+
+  // One-time seasonal auto-reset check (July 5) + persist
   useEffect(() => {
-    const copy = structuredClone(state);
-    maybeAutoReset(copy, new Date());
-    savestate(copy);
-    setstate(copy);
-  }, []);
+    const copy = structuredClone(state)
+    maybeAutoReset(copy, new Date())
+    saveState(copy)
+    setState(copy)
+  }, []) // eslint-disable-line
 
-  useEffect(() => {
-    savestate(state);
-  }, [state]);
+  // Persist whenever state changes
+  useEffect(() => { saveState(state) }, [state])
 
-  const matches = useMemo(() => getMatchesByFilter(state, filter), [state, filter]);
+  const matches = useMemo(() => getMatchesByFilter(state, filter), [state, filter])
+  const seasonWindow = getSeasonWindow()
 
-  function commitMatch(){
+  const summary = useMemo(() => {
+    const totals = { jeffy:{wins:0, played:0, scoreSum:0}, nicky:{wins:0, played:0, scoreSum:0} }
+    matches.forEach(m => {
+      const pj = m.players.find(p=>p.id==='jeffy')
+      const pn = m.players.find(p=>p.id==='nicky')
+      if (!pj || !pn) return
+      totals.jeffy.played++; totals.nicky.played++
+      totals.jeffy.scoreSum += Number(pj.score)||0
+      totals.nicky.scoreSum += Number(pn.score)||0
+      if ((Number(pj.score)||0) < (Number(pn.score)||0)) totals.jeffy.wins++
+      else if ((Number(pn.score)||0) < (Number(pj.score)||0)) totals.nicky.wins++
+    })
+    return totals
+  }, [matches])
+
+  function commitMatch() {
     const payload = {
       date: matchForm.date,
       course: matchForm.course || '',
@@ -55,60 +78,46 @@ export default function App(){
         { id:'jeffy', ...matchForm.players.jeffy },
         { id:'nicky', ...matchForm.players.nicky },
       ]
-    };
-    const copy = structuredClone(state);
-    addMatch(copy, payload);
-    savestate(copy);
-    setstate(copy);
-    alert('Match saved.');
+    }
+    const copy = structuredClone(state)
+    addMatch(copy, payload)
+    saveState(copy)
+    setState(copy)
+    alert('Match saved.')
   }
 
-  function doBubbly(){
-    const copy = structuredClone(state);
-    const item = bubblyRandomPick(copy);
-    if (!item) { alert('BUBBLY pool is empty.'); return; }
-    applyBubblyAward(copy, item, assignTo);
-    savestate(copy);
-    setstate(copy);
-    setBubblyResult(item);
+  function doBubbly() {
+    const copy = structuredClone(state)
+    const item = bubblyRandomPick(copy)
+    if (!item) { alert('BUBBLY pool is empty.'); return }
+    applyBubblyAward(copy, item, assignTo)
+    saveState(copy)
+    setState(copy)
+    setBubblyResult(item)
   }
 
-  const seasonWindow = getSeasonWindow();
-  const summary = useMemo(() => {
-    const totals = { jeffy:{wins:0, played:0, scoreSum:0}, nicky:{wins:0, played:0, scoreSum:0} };
-    matches.forEach(m => {
-      const pj = m.players.find(p=>p.id==='jeffy');
-      const pn = m.players.find(p=>p.id==='nicky');
-      if (!pj || !pn) return;
-      totals.jeffy.played++; totals.nicky.played++;
-      totals.jeffy.scoreSum += Number(pj.score)||0;
-      totals.nicky.scoreSum += Number(pn.score)||0;
-      if ((Number(pj.score)||0) < (Number(pn.score)||0)) totals.jeffy.wins++;
-      else if ((Number(pn.score)||0) < (Number(pj.score)||0)) totals.nicky.wins++;
-    });
-    return totals;
-  }, [matches]);
-
-  function manualResetBubbly(){
-    if (!confirm('Reset BUBBLY pool and tallies? This will archive current tallies into the season history.')) return;
-    const copy = structuredClone(state);
-    const yr = new Date().getFullYear();
-    copy.bubbly.historyArchive = copy.bubbly.historyArchive || [];
+  function manualResetBubbly() {
+    if (!confirm('Reset BUBBLY pool and tallies? This will archive current tallies into the season history.')) return
+    const copy = structuredClone(state)
+    const yr = new Date().getFullYear()
+    copy.bubbly.historyArchive = copy.bubbly.historyArchive || []
     copy.bubbly.historyArchive.push({
       season: `${yr-1}-${yr}`,
       tallies: JSON.parse(JSON.stringify(copy.bubbly.tallies)),
       history: JSON.parse(JSON.stringify(copy.bubbly.history))
-    });
-    resetBubbly(copy);
-    savestate(copy);
-    setstate(copy);
+    })
+    resetBubbly(copy)
+    saveState(copy)
+    setState(copy)
   }
 
   return (
     <div className="app">
       <header>
         <h2>Disc Golf — Jeffy vs Nicky</h2>
-        <div className="muted">Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}</div>
+        <div className="muted">
+          Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}
+        </div>
       </header>
 
       <nav>
@@ -120,16 +129,20 @@ export default function App(){
         <span className="pill">Local only</span>
       </nav>
 
+      {/* Match entry */}
       {view==='match' && (
         <Section title="Enter Match">
           <div className="row">
             <div>
               <label>Date</label>
-              <input type="date" value={matchForm.date} onChange={e=>setMatchForm({...matchForm, date:e.target.value})} />
+              <input type="date" value={matchForm.date}
+                onChange={e=>setMatchForm({...matchForm, date:e.target.value})} />
             </div>
             <div>
               <label>Course</label>
-              <input value={matchForm.course} onChange={e=>setMatchForm({...matchForm, course:e.target.value})} placeholder="Course name" />
+              <input value={matchForm.course}
+                onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
+                placeholder="Course name" />
             </div>
           </div>
 
@@ -137,23 +150,75 @@ export default function App(){
             {PLAYERS.map(pl => (
               <div key={pl.id} className="card" style={{border:'1px dashed #ccc', background:'#fafafa'}}>
                 <h4 style={{marginTop:0}}>{pl.name}</h4>
+
                 <label>Score</label>
-                <input type="number" value={matchForm.players[pl.id].score} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], score:e.target.value}}})} />
+                <input type="number"
+                  value={matchForm.players[pl.id].score}
+                  onChange={e=>setMatchForm({
+                    ...matchForm,
+                    players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], score:e.target.value}}
+                  })}
+                />
 
                 <div className="row3">
-                  <label className="flex"><input type="checkbox" checked={matchForm.players[pl.id].ctp} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ctp:e.target.checked}}})} /> CTP</label>
-                  <label className="flex"><input type="checkbox" checked={matchForm.players[pl.id].putt30} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt30:e.target.checked}}})} /> Outside 30’</label>
-                  <label className="flex"><input type="checkbox" checked={matchForm.players[pl.id].putt40} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt40:e.target.checked}}})} /> Outside 40’</label>
+                  <label className="flex">
+                    <input type="checkbox"
+                      checked={matchForm.players[pl.id].ctp}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ctp:e.target.checked}}
+                      })}
+                    /> CTP
+                  </label>
+                  <label className="flex">
+                    <input type="checkbox"
+                      checked={matchForm.players[pl.id].putt30}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt30:e.target.checked}}
+                      })}
+                    /> Outside 30’
+                  </label>
+                  <label className="flex">
+                    <input type="checkbox"
+                      checked={matchForm.players[pl.id].putt40}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt40:e.target.checked}}
+                      })}
+                    /> Outside 40’
+                  </label>
                 </div>
+
                 <div className="row3">
-                  <label className="flex"><input type="checkbox" checked={matchForm.players[pl.id].putt50} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt50:e.target.checked}}})} /> Outside 50’</label>
+                  <label className="flex">
+                    <input type="checkbox"
+                      checked={matchForm.players[pl.id].putt50}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt50:e.target.checked}}
+                      })}
+                    /> Outside 50’
+                  </label>
                   <div>
                     <label>Long putt distance (ft)</label>
-                    <input type="number" value={matchForm.players[pl.id].longPuttDistance} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], longPuttDistance:e.target.value}}})} />
+                    <input type="number"
+                      value={matchForm.players[pl.id].longPuttDistance}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], longPuttDistance:e.target.value}}
+                      })}
+                    />
                   </div>
                   <div>
                     <label>OB (count)</label>
-                    <input type="number" value={matchForm.players[pl.id].ob} onChange={e=>setMatchForm({...matchForm, players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ob:e.target.value}}})} />
+                    <input type="number"
+                      value={matchForm.players[pl.id].ob}
+                      onChange={e=>setMatchForm({
+                        ...matchForm,
+                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ob:e.target.value}}
+                      })}
+                    />
                   </div>
                 </div>
               </div>
@@ -164,23 +229,31 @@ export default function App(){
         </Section>
       )}
 
+      {/* History */}
       {view==='history' && (
-        <Section title="Match History" right={
-          <select value={filter} onChange={e=>setFilter(e.target.value)}>
-            <option value="current">Current Season</option>
-            <option value="all">All Time</option>
-          </select>
-        }>
+        <Section
+          title="Match History"
+          right={
+            <select value={filter} onChange={e=>setFilter(e.target.value)}>
+              <option value="current">Current Season</option>
+              <option value="all">All Time</option>
+            </select>
+          }
+        >
           <table>
             <thead>
               <tr>
-                <th>Date</th><th>Course</th><th>Jeffy Score</th><th>Nicky Score</th><th>Notes</th>
+                <th>Date</th>
+                <th>Course</th>
+                <th>Jeffy Score</th>
+                <th>Nicky Score</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
               {matches.map(m => {
-                const pj = m.players.find(p=>p.id==='jeffy') || {};
-                const pn = m.players.find(p=>p.id==='nicky') || {};
+                const pj = m.players.find(p=>p.id==='jeffy') || {}
+                const pn = m.players.find(p=>p.id==='nicky') || {}
                 const notes = [
                   pj.ctp?'J-CTP':'' , pn.ctp?'N-CTP':'',
                   pj.putt30?'J-30ft':'', pn.putt30?'N-30ft':'',
@@ -189,7 +262,7 @@ export default function App(){
                   pj.ob?`J-OB:${pj.ob}`:'', pn.ob?`N-OB:${pn.ob}`:'',
                   pj.longPuttDistance?`J-LP:${pj.longPuttDistance}`:'',
                   pn.longPuttDistance?`N-LP:${pn.longPuttDistance}`:'',
-                ].filter(Boolean).join(' · ');
+                ].filter(Boolean).join(' · ')
                 return (
                   <tr key={m.id}>
                     <td>{formatDate(m.date)}</td>
@@ -205,6 +278,7 @@ export default function App(){
         </Section>
       )}
 
+      {/* Summary */}
       {view==='summary' && (
         <Section title="Summary">
           <div className="row">
@@ -229,13 +303,17 @@ export default function App(){
         </Section>
       )}
 
+      {/* BUBBLY */}
       {view==='bubbly' && (
-        <Section title="BUBBLY" right={
-          <select value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
-            <option value="jeffy">Jeffy</option>
-            <option value="nicky">Nicky</option>
-          </select>
-        }>
+        <Section
+          title="BUBBLY"
+          right={
+            <select value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
+              <option value="jeffy">Jeffy</option>
+              <option value="nicky">Nicky</option>
+            </select>
+          }
+        >
           <button className="btn" onClick={doBubbly}>BUBBLY</button>
           {bubblyResult && (
             <div style={{marginTop:'.75rem'}}>
@@ -250,13 +328,16 @@ export default function App(){
             <summary>View recent BUBBLY history</summary>
             <ul>
               {[...state.bubbly.history].slice(-15).reverse().map((h,i)=>(
-                <li key={i}>{new Date(h.timestamp).toLocaleString()} — {h.winnerId} got <b>{h.itemLabel}</b> {h.type==='points'?`(${h.delta>0?'+':''}${h.delta})`:''}</li>
+                <li key={i}>
+                  {new Date(h.timestamp).toLocaleString()} — {h.winnerId} got <b>{h.itemLabel}</b> {h.type==='points'?`(${h.delta>0?'+':''}${h.delta})`:''}
+                </li>
               ))}
             </ul>
           </details>
         </Section>
       )}
 
+      {/* Settings */}
       {view==='settings' && (
         <Section title="Settings">
           <div className="row">
@@ -264,7 +345,19 @@ export default function App(){
               <h4>Data</h4>
               <button className="btn secondary" onClick={manualResetBubbly}>Reset BUBBLY now</button>
               <div style={{height:8}} />
-              <button className="btn secondary" onClick={()=>{ if(confirm('Wipe all data?')) { const copy = structuredClone(state); wipeAll(copy); saveState(copy); setState(copy);} }}>Wipe all data</button>
+              <button
+                className="btn secondary"
+                onClick={()=>{
+                  if (confirm('Wipe all data?')) {
+                    const copy = structuredClone(state)
+                    wipeAll(copy)
+                    saveState(copy)
+                    setState(copy)
+                  }
+                }}
+              >
+                Wipe all data
+              </button>
             </div>
             <div className="card">
               <h4>About</h4>
