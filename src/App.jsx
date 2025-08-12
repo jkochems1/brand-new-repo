@@ -311,43 +311,44 @@ export default function App() {
         <span className="pill">Local only</span>
       </nav>
 
-      {/* MATCH ENTRY */}
-      {view==='match' && (
-        <div className="fab">
-          <button className="btn" onClick={commitMatch}>Save Match</button>
-        </div>
-      <Section title="Enter Match">
-          {/* meta */}
-          <div className="row" style={{marginBottom:'.75rem'}}>
-            <div>
-              <label>Date</label>
-              <input type="date" value={matchForm.date}
-                     onChange={e=>setMatchForm({...matchForm, date:e.target.value})}/>
+           {/* MATCH ENTRY */}
+      {view === 'match' && (
+        <>
+          <Section title="Enter Match">
+            {/* meta */}
+            <div className="row" style={{marginBottom:'.75rem'}}>
+              <div>
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={matchForm.date}
+                  onChange={e=>setMatchForm({...matchForm, date:e.target.value})}
+                />
+              </div>
+              <div>
+                <label>Course</label>
+                <input
+                  value={matchForm.course}
+                  onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
+                  placeholder="Course name"
+                />
+              </div>
             </div>
-            <div>
-              <label>Course</label>
-              <input value={matchForm.course}
-                     onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
-                     placeholder="Course name"/>
-            </div>
+
+            {/* Front & Back blocks */}
+            <ScoreBlock title="Front 9" holes={FRONT} />
+            <ScoreBlock title="Back 9"  holes={BACK} />
+
+            {/* Inline save (hidden on phones via CSS .save-inline) */}
+            <button className="btn save-inline" onClick={commitMatch}>Save Match</button>
+          </Section>
+
+          {/* Floating save button on mobile */}
+          <div className="fab">
+            <button className="btn" onClick={commitMatch}>Save Match</button>
           </div>
-
-          {/* Front & Back blocks */}
-          <ScoreBlock title="Front 9" holes={FRONT} />
-          <ScoreBlock title="Back 9"  holes={BACK} />
-
-          <button className="btn" onClick={commitMatch}>Save Match</button>
-      </Section>
-
-      {/* Floating save button on mobile */}
-      <div className="fab">
-        <button className="btn" onClick={commitMatch}>Save Match</button>
-      </div>
-
-    </div>
-  );
-}
-
+        </>
+      )}
 
       {/* HISTORY */}
       {view==='history' && (
