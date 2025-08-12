@@ -191,7 +191,7 @@ export default function App() {
     return (
       <div className="card" style={{overflowX:'auto'}}>
         <h4 style={{marginTop:0}}>{title}</h4>
-        {/* Scores */}
+        {(/* Scores */)}
         <table>
           <thead>
             <tr>
