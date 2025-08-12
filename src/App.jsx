@@ -313,7 +313,10 @@ export default function App() {
 
       {/* MATCH ENTRY */}
       {view==='match' && (
-        <Section title="Enter Match">
+        <div className="fab">
+          <button className="btn" onClick={commitMatch}>Save Match</button>
+        </div>
+      <Section title="Enter Match">
           {/* meta */}
           <div className="row" style={{marginBottom:'.75rem'}}>
             <div>
