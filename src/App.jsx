@@ -417,7 +417,7 @@ export default function App() {
         </Section>
       )}
 
-      {/* BUBBLY */}
+           {/* BUBBLY */}
       {view==='bubbly' && (
         <Section
           title="BUBBLY"
