@@ -3,7 +3,7 @@ import {
   loadState, saveState,
   addMatch, getMatchesByFilter,
   bubblyRandomPick, applyBubblyAward,
-  wipeAll, maybeAutoReset, resetBubbly
+  maybeAutoReset, resetBubbly
 } from './state/storage'
 import { getSeasonWindow, formatDate } from './utils/date'
 
@@ -28,26 +28,33 @@ const range = (a,b)=>Array.from({length:b-a+1},(_,i)=>a+i)
 const FRONT = range(1,9)
 const BACK  = range(10,18)
 
+// Options
+const SCORE_OPTS = ['', ...Array.from({length:10},(_,i)=>String(i+1))] // "", "1".."10"
+const CTP_OPTS = [
+  {v:'none', label:''},
+  {v:'nicky', label:'Nicky'},
+  {v:'jeffy', label:'Jeffy'},
+]
+const OTHER_TOKENS = ['N30','N40','N50','NOB','J30','J40','J50','JOB']
+
 export default function App() {
   const [state, setState] = useState(loadState())
-  const [view, setView] = useState('match')       // match | history | summary | bubbly | settings
+  const [view, setView] = useState('match')       // match | history | summary | bubbly
   const [filter, setFilter] = useState('current') // current | all
   const [assignTo, setAssignTo] = useState('jeffy')
   const [bubblyResult, setBubblyResult] = useState(null)
 
   // one player's per-round bundle (scores only now)
   const emptyPlayer = () => ({
-    holes: Array(18).fill(''), // score per hole
+    holes: Array(18).fill(''), // score per hole as token "", "1".."10"
   })
 
   // round form
   const [matchForm, setMatchForm] = useState({
     date: new Date().toISOString().slice(0,10),
     course: '',
-    // shared rows:
-    ctpPerHole: Array(18).fill('none'),    // 'none' | 'nicky' | 'jeffy'
-    otherPerHole: Array(18).fill(''),      // free text like "OB", "50", "OB+40"
-    // players:
+    ctpPerHole: Array(18).fill('none'),  // 'none' | 'nicky' | 'jeffy'
+    otherPerHole: Array(18).fill([]),    // string[] per hole (tokens)
     players: { nicky: emptyPlayer(), jeffy: emptyPlayer() }
   })
 
@@ -66,7 +73,7 @@ export default function App() {
   // totals
   const totals = useMemo(() => {
     const calc = (pid) => {
-      const vals = (matchForm.players[pid].holes || []).map(v => Number(v)||0)
+      const vals = (matchForm.players[pid].holes || []).map(v => v===''?0:Number(v))
       const front = vals.slice(0,9).reduce((s,v)=>s+v,0)
       const back  = vals.slice(9).reduce((s,v)=>s+v,0)
       return { front, back, total: front+back }
@@ -74,12 +81,11 @@ export default function App() {
     return { nicky: calc('nicky'), jeffy: calc('jeffy') }
   }, [matchForm])
 
-  // helpers
-  function setHole(pid, idx, val) {
-    const v = val === '' ? '' : Math.max(0, Number(val))
+  // helpers for form
+  function setHole(pid, idx, token) {
     setMatchForm(f => {
       const next = structuredClone(f)
-      next.players[pid].holes[idx] = v
+      next.players[pid].holes[idx] = token // "", "1".."10"
       return next
     })
   }
@@ -90,10 +96,11 @@ export default function App() {
       return next
     })
   }
-  function setOther(idx, text) {
+  function setOtherMulti(idx, selectedOptions) {
+    const values = Array.from(selectedOptions).map(o=>o.value)
     setMatchForm(f => {
       const next = structuredClone(f)
-      next.otherPerHole[idx] = text
+      next.otherPerHole[idx] = values
       return next
     })
   }
@@ -103,16 +110,16 @@ export default function App() {
       date: matchForm.date,
       course: matchForm.course || '',
       ctpPerHole: [...matchForm.ctpPerHole],
-      otherPerHole: [...matchForm.otherPerHole],
+      otherPerHole: matchForm.otherPerHole.map(arr => Array.isArray(arr)?arr:[]),
       players: [
         {
           id:'nicky',
-          holes: matchForm.players.nicky.holes.map(n=>Number(n)||0),
+          holes: matchForm.players.nicky.holes.map(t=>t===''?0:Number(t)),
           score: totals.nicky.total
         },
         {
           id:'jeffy',
-          holes: matchForm.players.jeffy.holes.map(n=>Number(n)||0),
+          holes: matchForm.players.jeffy.holes.map(t=>t===''?0:Number(t)),
           score: totals.jeffy.total
         }
       ]
@@ -126,11 +133,12 @@ export default function App() {
       date: new Date().toISOString().slice(0,10),
       course: '',
       ctpPerHole: Array(18).fill('none'),
-      otherPerHole: Array(18).fill(''),
+      otherPerHole: Array(18).fill([]),
       players: { nicky: emptyPlayer(), jeffy: emptyPlayer() }
     }))
   }
 
+  // BUBBLY
   function doBubbly() {
     const copy = structuredClone(state)
     const item = bubblyRandomPick(copy)
@@ -140,26 +148,42 @@ export default function App() {
     setState(copy)
     setBubblyResult(item)
   }
-  function manualResetBubbly() {
-    if (!confirm('Reset BUBBLY pool and tallies? This will archive current tallies into the season history.')) return
+
+  function undoLastBubbly() {
     const copy = structuredClone(state)
-    const yr = new Date().getFullYear()
-    copy.bubbly.historyArchive = copy.bubbly.historyArchive || []
-    copy.bubbly.historyArchive.push({
-      season: `${yr-1}-${yr}`,
-      tallies: JSON.parse(JSON.stringify(copy.bubbly.tallies)),
-      history: JSON.parse(JSON.stringify(copy.bubbly.history))
-    })
-    resetBubbly(copy)
+    const last = copy.bubbly.history.pop()
+    if (!last) { alert('No BUBBLY to undo.'); return }
+    // return item to pool
+    const poolItem = copy.bubbly.pool.find(p => p.label === last.itemLabel)
+    if (poolItem) poolItem.qty = (poolItem.qty || 0) + 1
+    // reverse tallies
+    const t = copy.bubbly.tallies[last.winnerId]
+    if (t) {
+      if (last.type === 'points') {
+        t.points -= (last.delta || 0)
+      } else {
+        t.items[last.itemLabel] = Math.max(0, (t.items[last.itemLabel] || 0) - 1)
+        if (t.items[last.itemLabel] === 0) delete t.items[last.itemLabel]
+      }
+    }
     saveState(copy)
     setState(copy)
+    setBubblyResult(null)
   }
 
-  // derive CTP totals for history notes
+  // tallies for notes
   function countCtp(ctp) {
     let n=0, j=0
     for (const w of ctp||[]) { if (w==='nicky') n++; else if (w==='jeffy') j++; }
     return { n, j }
+  }
+  function countOtherTokens(otherPerHole) {
+    const tallies = {N30:0,N40:0,N50:0,NOB:0,J30:0,J40:0,J50:0,JOB:0}
+    for (const arr of otherPerHole||[]) {
+      if (!Array.isArray(arr)) continue
+      for (const t of arr) if (t in tallies) tallies[t]++
+    }
+    return tallies
   }
 
   function ScoreBlock({ title, holes }) {
@@ -167,7 +191,6 @@ export default function App() {
     return (
       <div className="card" style={{overflowX:'auto'}}>
         <h4 style={{marginTop:0}}>{title}</h4>
-
         {/* Scores */}
         <table>
           <thead>
@@ -183,20 +206,31 @@ export default function App() {
                 <td style={{fontWeight:700}}>{p.name}</td>
                 {holes.map((h,i)=>(
                   <td key={h}>
-                    <input
-                      type="number"
-                      inputMode="numeric"
+                    <select
                       value={matchForm.players[p.id].holes[s0+i]}
                       onChange={e=>setHole(p.id, s0+i, e.target.value)}
-                      style={{width:'3.2rem'}}
-                    />
+                      style={{width:'3.6rem'}}
+                    >
+                      {SCORE_OPTS.map(opt=>(
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </td>
                 ))}
                 {title==='Front 9'
-                  ? <td><b>{p.id==='nicky'?totals.nicky.front:totals.jeffy.front}</b></td>
+                  ? <td><b>{p.id==='nicky'
+                        ? matchForm.players.nicky.holes.slice(0,9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                        : matchForm.players.jeffy.holes.slice(0,9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                      }</b></td>
                   : <>
-                      <td><b>{p.id==='nicky'?totals.nicky.back:totals.jeffy.back}</b></td>
-                      <td><b>{p.id==='nicky'?totals.nicky.total:totals.jeffy.total}</b></td>
+                      <td><b>{p.id==='nicky'
+                        ? matchForm.players.nicky.holes.slice(9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                        : matchForm.players.jeffy.holes.slice(9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                      }</b></td>
+                      <td><b>{p.id==='nicky'
+                        ? matchForm.players.nicky.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                        : matchForm.players.jeffy.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)
+                      }</b></td>
                     </>
                 }
               </tr>
@@ -209,29 +243,32 @@ export default function App() {
                 const val = matchForm.ctpPerHole[idx]
                 return (
                   <td key={h}>
-                    <select value={val} onChange={e=>setCTP(idx, e.target.value)} style={{width:'3.4rem'}}>
-                      <option value="none"></option>
-                      <option value="nicky">N</option>
-                      <option value="jeffy">J</option>
+                    <select value={val} onChange={e=>setCTP(idx, e.target.value)} style={{width:'6.6rem'}}>
+                      {CTP_OPTS.map(o=><option key={o.v} value={o.v}>{o.label}</option>)}
                     </select>
                   </td>
                 )
               })}
               {title==='Front 9' ? <td /> : <><td /><td /></>}
             </tr>
-            {/* Other row */}
+            {/* Other row (multi-select) */}
             <tr>
               <td style={{fontWeight:700}}>Other</td>
               {holes.map((h,i)=>{
                 const idx = s0+i
+                const selected = matchForm.otherPerHole[idx] || []
                 return (
                   <td key={h}>
-                    <input
-                      value={matchForm.otherPerHole[idx]}
-                      onChange={e=>setOther(idx, e.target.value)}
-                      placeholder=""
-                      style={{width:'3.2rem'}}
-                    />
+                    <select
+                      multiple
+                      value={selected}
+                      onChange={e=>setOtherMulti(idx, e.target.selectedOptions)}
+                      style={{width:'6.6rem'}}
+                    >
+                      {OTHER_TOKENS.map(tok=>(
+                        <option key={tok} value={tok}>{tok}</option>
+                      ))}
+                    </select>
                   </td>
                 )
               })}
@@ -271,7 +308,6 @@ export default function App() {
         <button onClick={()=>setView('history')}>History</button>
         <button onClick={()=>setView('summary')}>Summary</button>
         <button onClick={()=>setView('bubbly')}>BUBBLY</button>
-        <button onClick={()=>setView('settings')}>Settings</button>
         <span className="pill">Local only</span>
       </nav>
 
@@ -325,9 +361,11 @@ export default function App() {
                 const pj = m.players.find(p=>p.id==='jeffy') || {}
                 const pn = m.players.find(p=>p.id==='nicky') || {}
                 const { n:ctpN, j:ctpJ } = countCtp(m.ctpPerHole || [])
+                const tok = countOtherTokens(m.otherPerHole || [])
                 const notes = [
                   ctpJ?`J-CTP:${ctpJ}`:'', ctpN?`N-CTP:${ctpN}`:'',
-                  (m.otherPerHole||[]).some(Boolean) ? `Other:${(m.otherPerHole||[]).join('|')}` : ''
+                  tok.N30?`N30:${tok.N30}`:'', tok.N40?`N40:${tok.N40}`:'', tok.N50?`N50:${tok.N50}`:'', tok.NOB?`NOB:${tok.NOB}`:'',
+                  tok.J30?`J30:${tok.J30}`:'', tok.J40?`J40:${tok.J40}`:'', tok.J50?`J50:${tok.J50}`:'', tok.JOB?`JOB:${tok.JOB}`:''
                 ].filter(Boolean).join(' · ')
                 return (
                   <tr key={m.id}>
@@ -380,13 +418,18 @@ export default function App() {
             </select>
           }
         >
-          <button className="btn" onClick={doBubbly}>BUBBLY</button>
+          <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+            <button className="btn" onClick={doBubbly}>BUBBLY</button>
+            <button className="btn secondary" onClick={undoLastBubbly}>Undo previous BUBBLY</button>
+          </div>
+
           {bubblyResult && (
             <div style={{marginTop:'.75rem'}}>
               <div>Selected: <b>{bubblyResult.label}</b> ({bubblyResult.type}{bubblyResult.delta?`, delta ${bubblyResult.delta}`:''})</div>
               <div className="muted">Assigned to: {assignTo}</div>
             </div>
           )}
+
           <div style={{marginTop:'1rem'}} className="muted">
             Remaining items in pool: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}
           </div>
@@ -400,36 +443,6 @@ export default function App() {
               ))}
             </ul>
           </details>
-        </Section>
-      )}
-
-      {/* SETTINGS */}
-      {view==='settings' && (
-        <Section title="Settings">
-          <div className="row">
-            <div className="card">
-              <h4>Data</h4>
-              <button className="btn secondary" onClick={manualResetBubbly}>Reset BUBBLY now</button>
-              <div style={{height:8}} />
-              <button
-                className="btn secondary"
-                onClick={()=>{
-                  if (confirm('Wipe all data?')) {
-                    const copy = structuredClone(state)
-                    wipeAll(copy)
-                    saveState(copy)
-                    setState(copy)
-                  }
-                }}
-              >
-                Wipe all data
-              </button>
-            </div>
-            <div className="card">
-              <h4>About</h4>
-              <div className="muted">Installable PWA. Data is stored locally on this device.</div>
-            </div>
-          </div>
         </Section>
       )}
     </div>
