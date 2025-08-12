@@ -1,59 +1,34 @@
 <!doctype html>
 <html lang="en">
-  
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon-192.png">
+  <!-- Use relative paths so GitHub Pages serves them under /brand-new-repo/ -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
   <meta name="theme-color" content="#0b6b5c" />
   <title>Disc Golf: Jeffy vs Nicky</title>
 
   <style>
     /* ---- Mobile polish ---- */
-    :root {
-      --bg: #ffffff;
-      --card: #f7f7f7;
-      --muted: #667085;
-      --brand: #0b6b5c;
-    }
+    :root { --bg:#ffffff; --card:#f7f7f7; --muted:#667085; --brand:#0b6b5c; }
     html, body, #root { background: var(--bg); }
     header { padding: 12px 16px; }
-    nav {
-      position: sticky; top: 0; z-index: 20;
-      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-      background: #fff; padding: 8px 12px; border-bottom: 1px solid #eee;
-    }
+    nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #fff; padding: 8px 12px; border-bottom: 1px solid #eee; }
     nav button { padding: 8px 10px; border-radius: 10px; }
     nav .pill { margin-left: auto; font-size: 12px; color: var(--muted); }
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 12px;
-      box-shadow: 0 1px 0 rgba(0,0,0,.05);
-    }
+    .card { background: var(--card); border-radius: 12px; padding: 12px; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .row3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
     .flex { display: inline-flex; align-items: center; gap: 6px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px; text-align: center; }
     th[style*="width:110"] { text-align: left; }
-    .card table input,
-    .card table select {
-      width: 3.4rem; height: 36px;
-      font-size: 16px; /* prevents iOS zoom */
-      border-radius: 8px; border: 1px solid #ddd; background: #fff;
-    }
+    .card table input, .card table select { width: 3.4rem; height: 36px; font-size: 16px; border-radius: 8px; border: 1px solid #ddd; background: #fff; }
     .card table select[multiple] { height: 80px; }
     .card { -webkit-overflow-scrolling: touch; }
-    .fab {
-      position: fixed; right: 16px; bottom: 16px; z-index: 40; display: none;
-    }
-    .fab .btn {
-      padding: 12px 16px; border-radius: 999px; font-weight: 600;
-      box-shadow: 0 6px 24px rgba(0,0,0,.15);
-      background: var(--brand); color: #fff; border: none;
-    }
+    .fab { position: fixed; right: 16px; bottom: 16px; z-index: 40; display: none; }
+    .fab .btn { padding: 12px 16px; border-radius: 999px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.15); background: var(--brand); color: #fff; border: none; }
     .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; }
     .btn.secondary { background: #fff; }
     .muted { color: var(--muted); }
@@ -63,6 +38,14 @@
       th, td { padding: 4px; }
       .card table input, .card table select { height: 34px; }
       .fab { display: block; }
+      .save-inline { display: none; }
     }
   </style>
 </head>
+<body>
+  <!-- React mounts here -->
+  <div id="root"></div>
+  <!-- Boot the app AFTER the root exists -->
+  <script type="module" src="./src/main.jsx"></script>
+</body>
+</html>
