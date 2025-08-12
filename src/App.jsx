@@ -24,24 +24,35 @@ function Section({ title, children, right }) {
   )
 }
 
+// helpers
+const range = (a,b)=>Array.from({length:b-a+1},(_,i)=>a+i)
+const FRONT = range(1,9)
+const BACK  = range(10,18)
+
 export default function App() {
   const [state, setState] = useState(loadState())
-  const [view, setView] = useState('match')   // match | history | summary | bubbly | settings
+  const [view, setView] = useState('match')     // match | history | summary | bubbly | settings
   const [filter, setFilter] = useState('current') // current | all
+  const [assignTo, setAssignTo] = useState('jeffy')
+  const [bubblyResult, setBubblyResult] = useState(null)
+
+  // scorecard form state
+  const emptyPlayer = () => ({
+    holes: Array(18).fill(''),
+    ctp:false, putt30:false, putt40:false, putt50:false,
+    longPuttDistance:'', ob:0
+  })
 
   const [matchForm, setMatchForm] = useState({
     date: new Date().toISOString().slice(0,10),
     course: '',
     players: {
-      jeffy: { score: 0, ctp:false, putt30:false, putt40:false, putt50:false, longPuttDistance:'', ob:0 },
-      nicky: { score: 0, ctp:false, putt30:false, putt40:false, putt50:false, longPuttDistance:'', ob:0 },
+      nicky: emptyPlayer(),
+      jeffy: emptyPlayer()
     }
   })
 
-  const [bubblyResult, setBubblyResult] = useState(null)
-  const [assignTo, setAssignTo] = useState('jeffy')
-
-  // One-time seasonal auto-reset check (July 5) + persist
+  // seasonal reset + persist boot
   useEffect(() => {
     const copy = structuredClone(state)
     maybeAutoReset(copy, new Date())
@@ -49,12 +60,24 @@ export default function App() {
     setState(copy)
   }, []) // eslint-disable-line
 
-  // Persist whenever state changes
+  // persist any change
   useEffect(() => { saveState(state) }, [state])
 
   const matches = useMemo(() => getMatchesByFilter(state, filter), [state, filter])
   const seasonWindow = getSeasonWindow()
 
+  // totals
+  const totals = useMemo(() => {
+    const calc = (pid) => {
+      const vals = (matchForm.players[pid].holes || []).map(v => Number(v)||0)
+      const front = vals.slice(0,9).reduce((s,v)=>s+v,0)
+      const back  = vals.slice(9).reduce((s,v)=>s+v,0)
+      return { front, back, total: front+back }
+    }
+    return { jeffy: calc('jeffy'), nicky: calc('nicky') }
+  }, [matchForm])
+
+  // summary panel
   const summary = useMemo(() => {
     const totals = { jeffy:{wins:0, played:0, scoreSum:0}, nicky:{wins:0, played:0, scoreSum:0} }
     matches.forEach(m => {
@@ -70,13 +93,52 @@ export default function App() {
     return totals
   }, [matches])
 
+  // handlers
+  function setHole(pid, idx, val) {
+    const v = val === '' ? '' : Math.max(0, Number(val))
+    setMatchForm(f => {
+      const next = structuredClone(f)
+      next.players[pid].holes[idx] = v
+      return next
+    })
+  }
+
+  function setExtra(pid, key, val) {
+    setMatchForm(f => {
+      const next = structuredClone(f)
+      next.players[pid][key] = val
+      return next
+    })
+  }
+
   function commitMatch() {
+    // store per-hole arrays + compute totals; also set legacy "score" for History/Summary
     const payload = {
       date: matchForm.date,
       course: matchForm.course || '',
       players: [
-        { id:'jeffy', ...matchForm.players.jeffy },
-        { id:'nicky', ...matchForm.players.nicky },
+        {
+          id:'nicky',
+          holes: matchForm.players.nicky.holes.map(n=>Number(n)||0),
+          ctp: matchForm.players.nicky.ctp,
+          putt30: matchForm.players.nicky.putt30,
+          putt40: matchForm.players.nicky.putt40,
+          putt50: matchForm.players.nicky.putt50,
+          longPuttDistance: matchForm.players.nicky.longPuttDistance,
+          ob: Number(matchForm.players.nicky.ob)||0,
+          score: totals.nicky.total
+        },
+        {
+          id:'jeffy',
+          holes: matchForm.players.jeffy.holes.map(n=>Number(n)||0),
+          ctp: matchForm.players.jeffy.ctp,
+          putt30: matchForm.players.jeffy.putt30,
+          putt40: matchForm.players.jeffy.putt40,
+          putt50: matchForm.players.jeffy.putt50,
+          longPuttDistance: matchForm.players.jeffy.longPuttDistance,
+          ob: Number(matchForm.players.jeffy.ob)||0,
+          score: totals.jeffy.total
+        }
       ]
     }
     const copy = structuredClone(state)
@@ -84,6 +146,8 @@ export default function App() {
     saveState(copy)
     setState(copy)
     alert('Match saved.')
+    // reset form for new round
+    setMatchForm(m => ({ ...m, course:'', players: { nicky: emptyPlayer(), jeffy: emptyPlayer() } }))
   }
 
   function doBubbly() {
@@ -115,9 +179,7 @@ export default function App() {
     <div className="app">
       <header>
         <h2>Disc Golf — Jeffy vs Nicky</h2>
-        <div className="muted">
-          Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}
-        </div>
+        <div className="muted">Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}</div>
       </header>
 
       <nav>
@@ -129,96 +191,131 @@ export default function App() {
         <span className="pill">Local only</span>
       </nav>
 
-      {/* Match entry */}
+      {/* MATCH ENTRY */}
       {view==='match' && (
         <Section title="Enter Match">
-          <div className="row">
+          {/* meta */}
+          <div className="row" style={{marginBottom:'.75rem'}}>
             <div>
               <label>Date</label>
               <input type="date" value={matchForm.date}
-                onChange={e=>setMatchForm({...matchForm, date:e.target.value})} />
+                     onChange={e=>setMatchForm({...matchForm, date:e.target.value})}/>
             </div>
             <div>
               <label>Course</label>
               <input value={matchForm.course}
-                onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
-                placeholder="Course name" />
+                     onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
+                     placeholder="Course name"/>
             </div>
           </div>
 
+          {/* FRONT 9 */}
+          <div className="card" style={{overflowX:'auto'}}>
+            <h4 style={{marginTop:0}}>Front 9</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{width:110}}>Name</th>
+                  {FRONT.map(h=><th key={h}>{h}</th>)}
+                  <th>Front</th>
+                </tr>
+              </thead>
+              <tbody>
+                {['nicky','jeffy'].map(pid=>(
+                  <tr key={pid}>
+                    <td style={{fontWeight:700}}>{pid==='nicky'?'Nicky':'Jeffy'}</td>
+                    {FRONT.map((h,i)=>(
+                      <td key={h}>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={matchForm.players[pid].holes[i]}
+                          onChange={e=>setHole(pid, i, e.target.value)}
+                          style={{width:'3.2rem'}}
+                        />
+                      </td>
+                    ))}
+                    <td><b>{pid==='nicky'?totals.nicky.front:totals.jeffy.front}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* BACK 9 */}
+          <div className="card" style={{overflowX:'auto'}}>
+            <h4 style={{marginTop:0}}>Back 9</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th style={{width:110}}>Name</th>
+                  {BACK.map((h,idx)=><th key={h}>{h}</th>)}
+                  <th>Back</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {['nicky','jeffy'].map(pid=>(
+                  <tr key={pid}>
+                    <td style={{fontWeight:700}}>{pid==='nicky'?'Nicky':'Jeffy'}</td>
+                    {BACK.map((h,idx)=>(
+                      <td key={h}>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={matchForm.players[pid].holes[9+idx]}
+                          onChange={e=>setHole(pid, 9+idx, e.target.value)}
+                          style={{width:'3.2rem'}}
+                        />
+                      </td>
+                    ))}
+                    <td><b>{pid==='nicky'?totals.nicky.back:totals.jeffy.back}</b></td>
+                    <td><b>{pid==='nicky'?totals.nicky.total:totals.jeffy.total}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Extras / stats */}
           <div className="row">
-            {PLAYERS.map(pl => (
-              <div key={pl.id} className="card" style={{border:'1px dashed #ccc', background:'#fafafa'}}>
-                <h4 style={{marginTop:0}}>{pl.name}</h4>
-
-                <label>Score</label>
-                <input type="number"
-                  value={matchForm.players[pl.id].score}
-                  onChange={e=>setMatchForm({
-                    ...matchForm,
-                    players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], score:e.target.value}}
-                  })}
-                />
-
+            {['nicky','jeffy'].map(pid=>(
+              <div key={pid} className="card" style={{background:'#fafafa'}}>
+                <h4 style={{marginTop:0}}>{pid==='nicky'?'Nicky':'Jeffy'} — Extras</h4>
                 <div className="row3">
                   <label className="flex">
                     <input type="checkbox"
-                      checked={matchForm.players[pl.id].ctp}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ctp:e.target.checked}}
-                      })}
-                    /> CTP
+                      checked={matchForm.players[pid].ctp}
+                      onChange={e=>setExtra(pid,'ctp',e.target.checked)} /> CTP
                   </label>
                   <label className="flex">
                     <input type="checkbox"
-                      checked={matchForm.players[pl.id].putt30}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt30:e.target.checked}}
-                      })}
-                    /> Outside 30’
+                      checked={matchForm.players[pid].putt30}
+                      onChange={e=>setExtra(pid,'putt30',e.target.checked)} /> Outside 30’
                   </label>
                   <label className="flex">
                     <input type="checkbox"
-                      checked={matchForm.players[pl.id].putt40}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt40:e.target.checked}}
-                      })}
-                    /> Outside 40’
+                      checked={matchForm.players[pid].putt40}
+                      onChange={e=>setExtra(pid,'putt40',e.target.checked)} /> Outside 40’
                   </label>
                 </div>
-
                 <div className="row3">
                   <label className="flex">
                     <input type="checkbox"
-                      checked={matchForm.players[pl.id].putt50}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], putt50:e.target.checked}}
-                      })}
-                    /> Outside 50’
+                      checked={matchForm.players[pid].putt50}
+                      onChange={e=>setExtra(pid,'putt50',e.target.checked)} /> Outside 50’
                   </label>
                   <div>
                     <label>Long putt distance (ft)</label>
                     <input type="number"
-                      value={matchForm.players[pl.id].longPuttDistance}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], longPuttDistance:e.target.value}}
-                      })}
-                    />
+                           value={matchForm.players[pid].longPuttDistance}
+                           onChange={e=>setExtra(pid,'longPuttDistance',e.target.value)} />
                   </div>
                   <div>
                     <label>OB (count)</label>
                     <input type="number"
-                      value={matchForm.players[pl.id].ob}
-                      onChange={e=>setMatchForm({
-                        ...matchForm,
-                        players:{...matchForm.players, [pl.id]:{...matchForm.players[pl.id], ob:e.target.value}}
-                      })}
-                    />
+                           value={matchForm.players[pid].ob}
+                           onChange={e=>setExtra(pid,'ob',e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -229,7 +326,7 @@ export default function App() {
         </Section>
       )}
 
-      {/* History */}
+      {/* HISTORY */}
       {view==='history' && (
         <Section
           title="Match History"
@@ -243,10 +340,8 @@ export default function App() {
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Course</th>
-                <th>Jeffy Score</th>
-                <th>Nicky Score</th>
+                <th>Date</th><th>Course</th>
+                <th>Jeffy Total</th><th>Nicky Total</th>
                 <th>Notes</th>
               </tr>
             </thead>
@@ -278,7 +373,7 @@ export default function App() {
         </Section>
       )}
 
-      {/* Summary */}
+      {/* SUMMARY */}
       {view==='summary' && (
         <Section title="Summary">
           <div className="row">
@@ -337,7 +432,7 @@ export default function App() {
         </Section>
       )}
 
-      {/* Settings */}
+      {/* SETTINGS */}
       {view==='settings' && (
         <Section title="Settings">
           <div className="row">
