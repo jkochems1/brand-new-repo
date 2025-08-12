@@ -35,40 +35,35 @@ export default function App() {
   const [assignTo, setAssignTo] = useState('jeffy')
   const [bubblyResult, setBubblyResult] = useState(null)
 
-  // One player's per-round form bundle
+  // one player's per-round bundle (scores only now)
   const emptyPlayer = () => ({
-    holes: Array(18).fill(''),          // score per hole
-    puttFt: Array(18).fill(''),         // made-putt distance in feet (blank = none)
-    obPerHole: Array(18).fill(''),      // OB count per hole
+    holes: Array(18).fill(''), // score per hole
   })
 
-  // Overall form state for a round
+  // round form
   const [matchForm, setMatchForm] = useState({
     date: new Date().toISOString().slice(0,10),
     course: '',
-    // CTP winner per hole: 'none' | 'nicky' | 'jeffy'
-    ctpPerHole: Array(18).fill('none'),
-    players: {
-      nicky: emptyPlayer(),
-      jeffy: emptyPlayer()
-    }
+    // shared rows:
+    ctpPerHole: Array(18).fill('none'),    // 'none' | 'nicky' | 'jeffy'
+    otherPerHole: Array(18).fill(''),      // free text like "OB", "50", "OB+40"
+    // players:
+    players: { nicky: emptyPlayer(), jeffy: emptyPlayer() }
   })
 
-  // seasonal reset + persist boot
+  // boot: seasonal check + persist
   useEffect(() => {
     const copy = structuredClone(state)
     maybeAutoReset(copy, new Date())
     saveState(copy)
     setState(copy)
   }, []) // eslint-disable-line
-
-  // persist any change
   useEffect(() => { saveState(state) }, [state])
 
   const matches = useMemo(() => getMatchesByFilter(state, filter), [state, filter])
   const seasonWindow = getSeasonWindow()
 
-  // totals for the live scorecard
+  // totals
   const totals = useMemo(() => {
     const calc = (pid) => {
       const vals = (matchForm.players[pid].holes || []).map(v => Number(v)||0)
@@ -79,28 +74,12 @@ export default function App() {
     return { nicky: calc('nicky'), jeffy: calc('jeffy') }
   }, [matchForm])
 
-  // helpers to mutate form
+  // helpers
   function setHole(pid, idx, val) {
     const v = val === '' ? '' : Math.max(0, Number(val))
     setMatchForm(f => {
       const next = structuredClone(f)
       next.players[pid].holes[idx] = v
-      return next
-    })
-  }
-  function setPuttFt(pid, idx, val) {
-    const v = val === '' ? '' : Math.max(0, Number(val))
-    setMatchForm(f => {
-      const next = structuredClone(f)
-      next.players[pid].puttFt[idx] = v
-      return next
-    })
-  }
-  function setOb(pid, idx, val) {
-    const n = val === '' ? '' : Math.max(0, Number(val))
-    setMatchForm(f => {
-      const next = structuredClone(f)
-      next.players[pid].obPerHole[idx] = n
       return next
     })
   }
@@ -111,51 +90,47 @@ export default function App() {
       return next
     })
   }
+  function setOther(idx, text) {
+    setMatchForm(f => {
+      const next = structuredClone(f)
+      next.otherPerHole[idx] = text
+      return next
+    })
+  }
 
-  // save round
   function commitMatch() {
-    const nickyObTotal = (matchForm.players.nicky.obPerHole||[]).reduce((s,v)=>s+(Number(v)||0),0)
-    const jeffyObTotal = (matchForm.players.jeffy.obPerHole||[]).reduce((s,v)=>s+(Number(v)||0),0)
-
     const payload = {
       date: matchForm.date,
       course: matchForm.course || '',
       ctpPerHole: [...matchForm.ctpPerHole],
+      otherPerHole: [...matchForm.otherPerHole],
       players: [
         {
           id:'nicky',
           holes: matchForm.players.nicky.holes.map(n=>Number(n)||0),
-          puttFt: matchForm.players.nicky.puttFt.map(x=>x===''?null:Number(x)),
-          obPerHole: matchForm.players.nicky.obPerHole.map(x=>Number(x)||0),
-          ob: nickyObTotal,                 // legacy total for notes
-          score: totals.nicky.total         // keep History/Summary working
+          score: totals.nicky.total
         },
         {
           id:'jeffy',
           holes: matchForm.players.jeffy.holes.map(n=>Number(n)||0),
-          puttFt: matchForm.players.jeffy.puttFt.map(x=>x===''?null:Number(x)),
-          obPerHole: matchForm.players.jeffy.obPerHole.map(x=>Number(x)||0),
-          ob: jeffyObTotal,
           score: totals.jeffy.total
         }
       ]
     }
-
     const copy = structuredClone(state)
     addMatch(copy, payload)
     saveState(copy)
     setState(copy)
     alert('Match saved.')
-    // reset for next round
     setMatchForm(m => ({
       date: new Date().toISOString().slice(0,10),
       course: '',
       ctpPerHole: Array(18).fill('none'),
+      otherPerHole: Array(18).fill(''),
       players: { nicky: emptyPlayer(), jeffy: emptyPlayer() }
     }))
   }
 
-  // BUBBLY
   function doBubbly() {
     const copy = structuredClone(state)
     const item = bubblyRandomPick(copy)
@@ -180,34 +155,19 @@ export default function App() {
     setState(copy)
   }
 
-  // derived tallies for History notes
-  function countOutsideBuckets(puttFtArr) {
-    let c30=0, c40=0, c50=0
-    for (const d of puttFtArr||[]) {
-      if (d == null || d === '') continue
-      const n = Number(d)||0
-      if (n >= 50) c50++
-      else if (n >= 40) c40++
-      else if (n >= 30) c30++
-    }
-    return { c30, c40, c50 }
-  }
+  // derive CTP totals for history notes
   function countCtp(ctp) {
     let n=0, j=0
-    for (const w of ctp||[]) {
-      if (w==='nicky') n++
-      else if (w==='jeffy') j++
-    }
+    for (const w of ctp||[]) { if (w==='nicky') n++; else if (w==='jeffy') j++; }
     return { n, j }
   }
 
-  // UI pieces
-  function ScoreTable({ title, holes }) {
-    const sliceStart = holes[0]-1
-    const sliceEnd = holes[holes.length-1]-1
+  function ScoreBlock({ title, holes }) {
+    const s0 = holes[0]-1
     return (
       <div className="card" style={{overflowX:'auto'}}>
         <h4 style={{marginTop:0}}>{title}</h4>
+
         {/* Scores */}
         <table>
           <thead>
@@ -226,8 +186,8 @@ export default function App() {
                     <input
                       type="number"
                       inputMode="numeric"
-                      value={matchForm.players[p.id].holes[sliceStart+i]}
-                      onChange={e=>setHole(p.id, sliceStart+i, e.target.value)}
+                      value={matchForm.players[p.id].holes[s0+i]}
+                      onChange={e=>setHole(p.id, s0+i, e.target.value)}
                       style={{width:'3.2rem'}}
                     />
                   </td>
@@ -241,114 +201,49 @@ export default function App() {
                 }
               </tr>
             ))}
-          </tbody>
-        </table>
-
-        {/* CTP per hole */}
-        <div className="muted" style={{marginTop:'.5rem'}}>CTP (per hole)</div>
-        <table>
-          <thead>
+            {/* CTP row */}
             <tr>
-              <th style={{width:110}}>Winner</th>
-              {holes.map(h=><th key={h}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="muted">None / N / J</td>
+              <td style={{fontWeight:700}}>CTP</td>
               {holes.map((h,i)=>{
-                const idx = sliceStart+i
+                const idx = s0+i
                 const val = matchForm.ctpPerHole[idx]
                 return (
                   <td key={h}>
-                    <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4}}>
-                      {['none','nicky','jeffy'].map(opt=>(
-                        <label key={opt} className="flex" style={{fontSize:12}}>
-                          <input
-                            type="radio"
-                            name={`ctp-${idx}`}
-                            checked={val===opt}
-                            onChange={()=>setCTP(idx,opt)}
-                          />
-                          {opt==='none'?'–':opt==='nicky'?'N':'J'}
-                        </label>
-                      ))}
-                    </div>
+                    <select value={val} onChange={e=>setCTP(idx, e.target.value)} style={{width:'3.4rem'}}>
+                      <option value="none"></option>
+                      <option value="nicky">N</option>
+                      <option value="jeffy">J</option>
+                    </select>
                   </td>
                 )
               })}
+              {title==='Front 9' ? <td /> : <><td /><td /></>}
             </tr>
-          </tbody>
-        </table>
-
-        {/* Putts per hole (ft) */}
-        <div className="muted" style={{marginTop:'.5rem'}}>Made putt distance (ft)</div>
-        <table>
-          <thead>
+            {/* Other row */}
             <tr>
-              <th style={{width:110}}>Name</th>
-              {holes.map(h=><th key={h}>{h}</th>)}
+              <td style={{fontWeight:700}}>Other</td>
+              {holes.map((h,i)=>{
+                const idx = s0+i
+                return (
+                  <td key={h}>
+                    <input
+                      value={matchForm.otherPerHole[idx]}
+                      onChange={e=>setOther(idx, e.target.value)}
+                      placeholder=""
+                      style={{width:'3.2rem'}}
+                    />
+                  </td>
+                )
+              })}
+              {title==='Front 9' ? <td /> : <><td /><td /></>}
             </tr>
-          </thead>
-          <tbody>
-            {PLAYERS.map(p=>(
-              <tr key={p.id}>
-                <td style={{fontWeight:700}}>{p.name}</td>
-                {holes.map((h,i)=>{
-                  const idx = sliceStart+i
-                  return (
-                    <td key={h}>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        placeholder=""
-                        value={matchForm.players[p.id].puttFt[idx]}
-                        onChange={e=>setPuttFt(p.id, idx, e.target.value)}
-                        style={{width:'3.2rem'}}
-                      />
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* OB per hole */}
-        <div className="muted" style={{marginTop:'.5rem'}}>OB per hole (count)</div>
-        <table>
-          <thead>
-            <tr>
-              <th style={{width:110}}>Name</th>
-              {holes.map(h=><th key={h}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {PLAYERS.map(p=>(
-              <tr key={p.id}>
-                <td style={{fontWeight:700}}>{p.name}</td>
-                {holes.map((h,i)=>{
-                  const idx = sliceStart+i
-                  return (
-                    <td key={h}>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        value={matchForm.players[p.id].obPerHole[idx]}
-                        onChange={e=>setOb(p.id, idx, e.target.value)}
-                        style={{width:'3.2rem'}}
-                      />
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>
     )
   }
 
+  // Summary (season)
   const seasonSummary = useMemo(() => {
     const totals = { jeffy:{wins:0, played:0, scoreSum:0}, nicky:{wins:0, played:0, scoreSum:0} }
     matches.forEach(m => {
@@ -398,9 +293,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* FRONT 9 and BACK 9 blocks */}
-          <ScoreTable title="Front 9" holes={FRONT} />
-          <ScoreTable title="Back 9"  holes={BACK}  />
+          {/* Front & Back blocks */}
+          <ScoreBlock title="Front 9" holes={FRONT} />
+          <ScoreBlock title="Back 9"  holes={BACK} />
 
           <button className="btn" onClick={commitMatch}>Save Match</button>
         </Section>
@@ -429,23 +324,11 @@ export default function App() {
               {matches.map(m => {
                 const pj = m.players.find(p=>p.id==='jeffy') || {}
                 const pn = m.players.find(p=>p.id==='nicky') || {}
-                // CTP totals
                 const { n:ctpN, j:ctpJ } = countCtp(m.ctpPerHole || [])
-                // bucket outside putts
-                const nb = countOutsideBuckets(pn.puttFt || [])
-                const jb = countOutsideBuckets(pj.puttFt || [])
-                // OB totals
-                const nOb = (pn.obPerHole||[]).reduce((s,v)=>s+(Number(v)||0), pn.ob||0)
-                const jOb = (pj.obPerHole||[]).reduce((s,v)=>s+(Number(v)||0), pj.ob||0)
-
                 const notes = [
                   ctpJ?`J-CTP:${ctpJ}`:'', ctpN?`N-CTP:${ctpN}`:'',
-                  nb.c30?`N-30ft:${nb.c30}`:'', jb.c30?`J-30ft:${jb.c30}`:'',
-                  nb.c40?`N-40ft:${nb.c40}`:'', jb.c40?`J-40ft:${jb.c40}`:'',
-                  nb.c50?`N-50ft:${nb.c50}`:'', jb.c50?`J-50ft:${jb.c50}`:'',
-                  jOb?`J-OB:${jOb}`:'', nOb?`N-OB:${nOb}`:'',
+                  (m.otherPerHole||[]).some(Boolean) ? `Other:${(m.otherPerHole||[]).join('|')}` : ''
                 ].filter(Boolean).join(' · ')
-
                 return (
                   <tr key={m.id}>
                     <td>{formatDate(m.date)}</td>
