@@ -191,7 +191,7 @@ export default function App() {
     return (
       <div className="card" style={{overflowX:'auto'}}>
         <h4 style={{marginTop:0}}>{title}</h4>
-        {(/* Scores */)}
+        {/* Scores */}
         <table>
           <thead>
             <tr>
@@ -318,33 +318,23 @@ export default function App() {
           <div className="row" style={{marginBottom:'.75rem'}}>
             <div>
               <label>Date</label>
-              <input
-                type="date"
-                value={matchForm.date}
-                onChange={e=>setMatchForm({...matchForm, date:e.target.value})}
-              />
+              <input type="date" value={matchForm.date}
+                     onChange={e=>setMatchForm({...matchForm, date:e.target.value})}/>
             </div>
             <div>
               <label>Course</label>
-              <input
-                value={matchForm.course}
-                onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
-                placeholder="Course name"
-              />
+              <input value={matchForm.course}
+                     onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
+                     placeholder="Course name"/>
             </div>
           </div>
 
           {/* Front & Back blocks */}
           <ScoreBlock title="Front 9" holes={FRONT} />
           <ScoreBlock title="Back 9"  holes={BACK} />
-        </Section>
-      )}
 
-      {/* FAB (show only on Match tab) */}
-      {view==='match' && (
-        <div className="fab">
           <button className="btn" onClick={commitMatch}>Save Match</button>
-        </div>
+        </Section>
       )}
 
       {/* HISTORY */}
@@ -417,7 +407,7 @@ export default function App() {
         </Section>
       )}
 
-           {/* BUBBLY */}
+      {/* BUBBLY */}
       {view==='bubbly' && (
         <Section
           title="BUBBLY"
