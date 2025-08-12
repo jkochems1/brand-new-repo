@@ -267,7 +267,7 @@ export default function App() {
                     >
                       {OTHER_TOKENS.map(tok=>(
                         <option key={tok} value={tok}>{tok}</option>
-                      )}
+                      ))}
                     </select>
                   </td>
                 )
