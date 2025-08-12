@@ -334,8 +334,17 @@ export default function App() {
           <ScoreBlock title="Back 9"  holes={BACK} />
 
           <button className="btn" onClick={commitMatch}>Save Match</button>
-        </Section>
-      )}
+      </Section>
+
+      {/* Floating save button on mobile */}
+      <div className="fab">
+        <button className="btn" onClick={commitMatch}>Save Match</button>
+      </div>
+
+    </div>
+  );
+}
+
 
       {/* HISTORY */}
       {view==='history' && (
