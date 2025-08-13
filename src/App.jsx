@@ -461,3 +461,38 @@ export default function App() {
     </div>
   )
 }
+// Export all app data to a JSON file
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `disc-golf-data-${new Date().toISOString().slice(0,10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Import a previously exported JSON file
+function importDataFile(file) {
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result)
+      // very light sanity check
+      if (!parsed || typeof parsed !== 'object' || !('matches' in parsed) || !('bubbly' in parsed)) {
+        alert('That file does not look like Disc Golf data.')
+        return
+      }
+      // hydrate/repair using existing logic by saving then reloading
+      saveState(parsed)
+      setState(loadState())
+      alert('Data imported successfully.')
+    } catch (e) {
+      console.error(e)
+      alert('Could not read that file.')
+    }
+  }
+  reader.readAsText(file)
+}
