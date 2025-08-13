@@ -6,41 +6,104 @@
   <!-- Use relative paths so GitHub Pages serves them under /brand-new-repo/ -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
-  <meta name="theme-color" content="#0b6b5c" />
+  <meta name="theme-color" content="#0b2845" />
   <title>Disc Golf: Jeffy vs Nicky</title>
 
-  <style>
-    /* ---- Mobile polish ---- */
-    :root { --bg:#ffffff; --card:#f7f7f7; --muted:#667085; --brand:#0b6b5c; }
-    html, body, #root { background: var(--bg); }
-    header { padding: 12px 16px; }
-    nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #fff; padding: 8px 12px; border-bottom: 1px solid #eee; }
-    nav button { padding: 8px 10px; border-radius: 10px; }
-    nav .pill { margin-left: auto; font-size: 12px; color: var(--muted); }
-    .card { background: var(--card); border-radius: 12px; padding: 12px; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-    .flex { display: inline-flex; align-items: center; gap: 6px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 6px; text-align: center; }
-    th[style*="width:110"] { text-align: left; }
-    .card table input, .card table select { width: 3.4rem; height: 36px; font-size: 16px; border-radius: 8px; border: 1px solid #ddd; background: #fff; }
-    .card table select[multiple] { height: 80px; }
-    .card { -webkit-overflow-scrolling: touch; }
-    .fab { position: fixed; right: 16px; bottom: 16px; z-index: 40; display: none; }
-    .fab .btn { padding: 12px 16px; border-radius: 999px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.15); background: var(--brand); color: #fff; border: none; }
-    .btn { padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; }
-    .btn.secondary { background: #fff; }
-    .muted { color: var(--muted); }
-    @media (max-width: 740px) {
-      header h2 { font-size: 18px; }
-      .row { grid-template-columns: 1fr; }
-      th, td { padding: 4px; }
-      .card table input, .card table select { height: 34px; }
-      .fab { display: block; }
-      .save-inline { display: none; }
-    }
-  </style>
+<style>
+  /* --- Mid-century modern theme --- */
+  :root{
+    --navy: #0b2845;         /* deep navy */
+    --sage: #7fa08a;         /* muted sage */
+    --cream: #f7f5ef;        /* warm paper background */
+    --ink:  #1e1f20;         /* text */
+    --muted:#6c6f75;         /* secondary text */
+    --accent:#e59f71;        /* small accent (burnt orange) */
+    --card: #ffffff;         /* cards on cream */
+  }
+
+  html, body, #root { height: 100%; margin: 0; background: var(--cream); color: var(--ink); font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, "Inter", system-ui, Arial, sans-serif; }
+
+  header { padding: 12px 16px; }
+  header h2 { margin: 0; color: var(--navy); letter-spacing: .2px; }
+
+  nav{
+    position: sticky; top:0; z-index:20;
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    background: linear-gradient(180deg, #0b2845 0%, #0e3358 100%);
+    padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  nav button{
+    padding:8px 12px; border-radius: 999px; border:1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.08); color:#fff; font-weight:600;
+    backdrop-filter: blur(2px);
+  }
+  nav button:hover{ background: rgba(255,255,255,.16); }
+  nav .pill{ margin-left:auto; font-size:12px; color: rgba(255,255,255,.75); }
+
+  .card{
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 6px 18px rgba(11,40,69,.06), 0 1px 0 rgba(11,40,69,.08);
+    border: 1px solid rgba(11,40,69,.08);
+  }
+
+  /* tables */
+  table{ width:100%; border-collapse: collapse; }
+  thead th{
+    background: color-mix(in srgb, var(--sage) 18%, white);
+    color: #0f2a22; border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  th, td{ padding: 6px; text-align:center; }
+  th[style*="width:110"]{ text-align:left; }
+  tbody tr:nth-child(even) td{ background: #faf9f5; }
+
+  /* inputs/selects */
+  .card table input,
+  .card table select{
+    width: 3.6rem; height: 36px; font-size:16px;
+    border-radius: 10px; border:1px solid rgba(11,40,69,.18); background:#fff;
+  }
+  .card table select[multiple]{ height: 86px; }
+
+  /* labels */
+  h3, h4{ color: var(--navy); margin: 0 0 6px; }
+
+  /* buttons */
+  .btn{
+    padding: 10px 14px; border-radius: 999px;
+    border: 1px solid rgba(11,40,69,.18);
+    background: var(--sage); color: #0f2a22; font-weight:700;
+  }
+  .btn:hover{ filter: brightness(0.95); }
+  .btn.secondary{
+    background: #fff; color: var(--navy);
+    border: 1px solid rgba(11,40,69,.22);
+  }
+
+  .muted{ color: var(--muted); }
+
+  /* Floating Save for mobile */
+  .fab{ position: fixed; right:16px; bottom:16px; z-index:40; display:none; }
+  .fab .btn{
+    background: var(--navy); color:#fff; border:none;
+    box-shadow: 0 10px 30px rgba(11,40,69,.25);
+  }
+
+  /* small accent for links or tiny highlights */
+  a, .accent{ color: var(--accent); }
+
+  /* mobile tweaks */
+  @media (max-width:740px){
+    header h2{ font-size:18px; }
+    .row{ display:grid; grid-template-columns: 1fr; gap:12px; }
+    th, td{ padding:4px; }
+    .card table input, .card table select{ height:34px; }
+    .fab{ display:block; }
+    .save-inline{ display:none; } /* hide inline Save on phones */
+  }
+</style>
+
 </head>
 <body>
   <!-- React mounts here -->
