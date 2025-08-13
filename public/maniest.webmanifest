@@ -6,7 +6,7 @@
   "background_color": "#ffffff",
   "theme_color": "#0b6b5c",
   "icons": [
-    { "src": "icons/bubbly-icon-180.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/bubbly-icon-192.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "bubbly-icon-180.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "bubbly-icon-192.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
