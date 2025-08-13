@@ -416,6 +416,22 @@ export default function App() {
               <div className="muted">Items: {Object.entries(state.bubbly.tallies.nicky.items||{}).map(([k,v])=>`${k}×${v}`).join(', ') || '-'}</div>
             </div>
           </div>
+          <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:8}}>
+  <button className="btn" onClick={exportData}>Export data</button>
+  <label className="btn" style={{cursor:'pointer'}}>
+    Import data
+    <input
+      type="file"
+      accept="application/json"
+      style={{display:'none'}}
+      onChange={e => {
+        const file = e.target.files?.[0]
+        if (file) importDataFile(file)
+        e.target.value = '' // reset for next time
+      }}
+    />
+  </label>
+</div>
           <div className="muted">BUBBLY pool remaining: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}</div>
         </Section>
       )}
