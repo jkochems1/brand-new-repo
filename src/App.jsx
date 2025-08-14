@@ -193,12 +193,12 @@ function ScorePicker({ value, onChange }) {
   const dec = () => onChange(toTok(toNum(value) - 1));
   const inc = () => onChange(toTok(toNum(value) + 1));
 
+  const display = value === '' ? '—' : value; // show dash when empty
+
   return (
-    <div style={{display:'grid', gridTemplateColumns:'28px 1fr 28px', gap:6, alignItems:'center'}}>
+    <div className="scorepicker">
       <button type="button" className="chip" onClick={dec} aria-label="decrease">−</button>
-      <select value={value} onChange={(e)=>onChange(e.target.value)}>
-        {SCORE_OPTS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
+      <div className="score-readout" aria-live="polite">{display}</div>
       <button type="button" className="chip" onClick={inc} aria-label="increase">+</button>
     </div>
   );
