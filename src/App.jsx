@@ -27,6 +27,7 @@ function Section({ title, children, right }) {
 const range = (a,b)=>Array.from({length:b-a+1},(_,i)=>a+i)
 const FRONT = range(1,9)
 const BACK  = range(10,18)
+const [openOther, setOpenOther] = useState(null); // { idx, values } | null
 
 // Options
 const SCORE_OPTS = ['', ...Array.from({length:10},(_,i)=>String(i+1))] // "", "1".."10"
@@ -43,6 +44,7 @@ export default function App() {
   const [filter, setFilter] = useState('current') // current | all
   const [assignTo, setAssignTo] = useState('jeffy')
   const [bubblyResult, setBubblyResult] = useState(null)
+const [openOther, setOpenOther] = useState(null); // { idx, values } | null
 
   // one player's per-round bundle (scores only now)
   const emptyPlayer = () => ({
@@ -104,6 +106,21 @@ export default function App() {
       return next
     })
   }
+  function setOtherValues(idx, valuesArr) {
+  setMatchForm(f => {
+    const next = structuredClone(f)
+    next.otherPerHole[idx] = Array.isArray(valuesArr) ? valuesArr : []
+    return next
+  })
+}
+
+function setOtherValues(idx, valuesArr) {
+  setMatchForm(f => {
+    const next = structuredClone(f)
+    next.otherPerHole[idx] = Array.isArray(valuesArr) ? valuesArr : []
+    return next
+  })
+}
 
   function commitMatch() {
     const payload = {
@@ -203,6 +220,44 @@ function ScorePicker({ value, onChange }) {
     </div>
   );
 }
+function OtherPickerSheet({ open, initial, onClose, onSave }) {
+  if (!open) return null;
+  const [sel, setSel] = React.useState(new Set(initial || []));
+
+  const toggle = (tok) => {
+    const next = new Set(sel);
+    next.has(tok) ? next.delete(tok) : next.add(tok);
+    setSel(next);
+  };
+
+return (
+  <div className="sheet">
+    <div className="sheet-card">
+      <div className="sheet-header">
+        <h3 style={{ margin: 0 }}>Other</h3>
+        <button className="btn secondary" onClick={onClose}>Close</button>
+      </div>
+
+      <div className="chip-grid">
+        {OTHER_TOKENS.map(tok => (
+          <button
+            key={tok}
+            type="button"
+            className={`chip-toggle${sel.has(tok) ? ' active' : ''}`}
+            onClick={() => toggle(tok)}
+          >
+            {tok}
+          </button>
+        ))}
+      </div>
+
+      <div className="sheet-actions">
+        <button className="btn" onClick={() => onSave(Array.from(sel))}>Save</button>
+      </div>
+    </div>
+  </div>
+);
+}
 
 function ScoreBlock({ title, holes }) {
   const s0 = holes[0] - 1;
@@ -288,19 +343,18 @@ function ScoreBlock({ title, holes }) {
               </select>
             </div>
 
-            {/* Other (multi) */}
-            <div>
-              <select
-                multiple
-                value={otherVals}
-                onChange={(e)=>setOtherMulti(idx, e.target.selectedOptions)}
-              >
-                {OTHER_TOKENS.map((tok) => (
-                  <option key={tok} value={tok}>{tok}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+{/* Other (opens sheet) */}
+<div>
+  <button
+    type="button"
+    className="btn other-btn"
+    onClick={()=>setOpenOther({ idx, values: otherVals })}
+  >
+    {otherVals.length ? `Other • ${otherVals.length}` : 'Other'}
+  </button>
+</div>
+
+
         );
       })}
 
@@ -327,187 +381,205 @@ function ScoreBlock({ title, holes }) {
     return totals
   }, [matches])
 
-  return (
-    <div className="app">
-      <header>
-        <h2>Disc Golf — Jeffy vs Nicky</h2>
-        <div className="muted">Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}</div>
-      </header>
+return (
+  <div className="app">
+    <header>
+      <h2>Disc Golf — Jeffy vs Nicky</h2>
+      <div className="muted">
+        Season: {seasonWindow.start.toLocaleDateString()}–{seasonWindow.end.toLocaleDateString()}
+      </div>
+    </header>
 
-      <nav>
-        <button onClick={()=>setView('match')}>Match Entry</button>
-        <button onClick={()=>setView('history')}>History</button>
-        <button onClick={()=>setView('summary')}>Summary</button>
-        <button onClick={()=>setView('bubbly')}>BUBBLY</button>
-        <span className="pill">Local only</span>
-      </nav>
+    <nav>
+      <button onClick={()=>setView('match')}>Match Entry</button>
+      <button onClick={()=>setView('history')}>History</button>
+      <button onClick={()=>setView('summary')}>Summary</button>
+      <button onClick={()=>setView('bubbly')}>BUBBLY</button>
+      <span className="pill">Local only</span>
+    </nav>
 
-           {/* MATCH ENTRY */}
-      {view === 'match' && (
-        <>
-          <Section title="Enter Match">
-            {/* meta */}
-            <div className="row" style={{marginBottom:'.75rem'}}>
-              <div>
-                <label>Date</label>
-                <input
-                  type="date"
-                  value={matchForm.date}
-                  onChange={e=>setMatchForm({...matchForm, date:e.target.value})}
-                />
-              </div>
-              <div>
-                <label>Course</label>
-                <input
-                  value={matchForm.course}
-                  onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
-                  placeholder="Course name"
-                />
-              </div>
+    {/* MATCH ENTRY */}
+    {view === 'match' && (
+      <>
+        <Section title="Enter Match">
+          {/* meta */}
+          <div className="row" style={{marginBottom:'.75rem'}}>
+            <div>
+              <label>Date</label>
+              <input
+                type="date"
+                value={matchForm.date}
+                onChange={e=>setMatchForm({...matchForm, date:e.target.value})}
+              />
             </div>
-
-            {/* Front & Back blocks */}
-            <ScoreBlock title="Front 9" holes={FRONT} />
-            <ScoreBlock title="Back 9"  holes={BACK} />
-
-            {/* Inline save (hidden on phones via CSS .save-inline) */}
-            <button className="btn save-inline" onClick={commitMatch}>Save Match</button>
-          </Section>
-
-          {/* Floating save button on mobile */}
-          <div className="fab">
-            <button className="btn" onClick={commitMatch}>Save Match</button>
+            <div>
+              <label>Course</label>
+              <input
+                value={matchForm.course}
+                onChange={e=>setMatchForm({...matchForm, course:e.target.value})}
+                placeholder="Course name"
+              />
+            </div>
           </div>
-        </>
-      )}
 
-      {/* HISTORY */}
-      {view==='history' && (
-        <Section
-          title="Match History"
-          right={
-            <select value={filter} onChange={e=>setFilter(e.target.value)}>
-              <option value="current">Current Season</option>
-              <option value="all">All Time</option>
-            </select>
-          }
-        >
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th><th>Course</th>
-                <th>Jeffy Total</th><th>Nicky Total</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {matches.map(m => {
-                const pj = m.players.find(p=>p.id==='jeffy') || {}
-                const pn = m.players.find(p=>p.id==='nicky') || {}
-                const { n:ctpN, j:ctpJ } = countCtp(m.ctpPerHole || [])
-                const tok = countOtherTokens(m.otherPerHole || [])
-                const notes = [
-                  ctpJ?`J-CTP:${ctpJ}`:'', ctpN?`N-CTP:${ctpN}`:'',
-                  tok.N30?`N30:${tok.N30}`:'', tok.N40?`N40:${tok.N40}`:'', tok.N50?`N50:${tok.N50}`:'', tok.NOB?`NOB:${tok.NOB}`:'',
-                  tok.J30?`J30:${tok.J30}`:'', tok.J40?`J40:${tok.J40}`:'', tok.J50?`J50:${tok.J50}`:'', tok.JOB?`JOB:${tok.JOB}`:''
-                ].filter(Boolean).join(' · ')
-                return (
-                  <tr key={m.id}>
-                    <td>{formatDate(m.date)}</td>
-                    <td>{m.course}</td>
-                    <td>{pj.score}</td>
-                    <td>{pn.score}</td>
-                    <td className="muted">{notes}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {/* Front & Back blocks */}
+          <ScoreBlock title="Front 9" holes={FRONT} />
+          <ScoreBlock title="Back 9"  holes={BACK} />
+
+          {/* Inline save (hidden on phones via CSS .save-inline) */}
+          <button className="btn save-inline" onClick={commitMatch}>Save Match</button>
         </Section>
-      )}
 
-      {/* SUMMARY */}
-      {view==='summary' && (
-        <Section title="Summary">
-          <div className="row">
-            <div className="card">
-              <h4>Jeffy</h4>
-              <div>Wins: <b>{seasonSummary.jeffy.wins}</b></div>
-              <div>Matches: <b>{seasonSummary.jeffy.played}</b></div>
-              <div>Avg Score: <b>{seasonSummary.jeffy.played ? (seasonSummary.jeffy.scoreSum/seasonSummary.jeffy.played).toFixed(1) : '-'}</b></div>
-              <div className="muted">BUBBLY points: <b>{state.bubbly.tallies.jeffy.points}</b></div>
-              <div className="muted">Items: {Object.entries(state.bubbly.tallies.jeffy.items||{}).map(([k,v])=>`${k}×${v}`).join(', ') || '-'}</div>
-            </div>
-            <div className="card">
-              <h4>Nicky</h4>
-              <div>Wins: <b>{seasonSummary.nicky.wins}</b></div>
-              <div>Matches: <b>{seasonSummary.nicky.played}</b></div>
-              <div>Avg Score: <b>{seasonSummary.nicky.played ? (seasonSummary.nicky.scoreSum/seasonSummary.nicky.played).toFixed(1) : '-'}</b></div>
-              <div className="muted">BUBBLY points: <b>{state.bubbly.tallies.nicky.points}</b></div>
-              <div className="muted">Items: {Object.entries(state.bubbly.tallies.nicky.items||{}).map(([k,v])=>`${k}×${v}`).join(', ') || '-'}</div>
-            </div>
+        {/* Floating save button on mobile */}
+        <div className="fab">
+          <button className="btn" onClick={commitMatch}>Save Match</button>
+        </div>
+      </>
+    )}
+
+    {/* HISTORY */}
+    {view === 'history' && (
+      <Section
+        title="Match History"
+        right={
+          <select value={filter} onChange={e=>setFilter(e.target.value)}>
+            <option value="current">Current Season</option>
+            <option value="all">All Time</option>
+          </select>
+        }
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Course</th>
+              <th>Jeffy Total</th><th>Nicky Total</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {matches.map(m => {
+              const pj = m.players.find(p=>p.id==='jeffy') || {}
+              const pn = m.players.find(p=>p.id==='nicky') || {}
+              const { n:ctpN, j:ctpJ } = countCtp(m.ctpPerHole || [])
+              const tok = countOtherTokens(m.otherPerHole || [])
+              const notes = [
+                ctpJ?`J-CTP:${ctpJ}`:'', ctpN?`N-CTP:${ctpN}`:'',
+                tok.N30?`N30:${tok.N30}`:'', tok.N40?`N40:${tok.N40}`:'', tok.N50?`N50:${tok.N50}`:'', tok.NOB?`NOB:${tok.NOB}`:'',
+                tok.J30?`J30:${tok.J30}`:'', tok.J40?`J40:${tok.J40}`:'', tok.J50?`J50:${tok.J50}`:'', tok.JOB?`JOB:${tok.JOB}`:''
+              ].filter(Boolean).join(' · ')
+              return (
+                <tr key={m.id}>
+                  <td>{formatDate(m.date)}</td>
+                  <td>{m.course}</td>
+                  <td>{pj.score}</td>
+                  <td>{pn.score}</td>
+                  <td className="muted">{notes}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </Section>
+    )}
+
+    {/* SUMMARY */}
+    {view === 'summary' && (
+      <Section title="Summary">
+        <div className="row">
+          <div className="card">
+            <h4>Jeffy</h4>
+            <div>Wins: <b>{seasonSummary.jeffy.wins}</b></div>
+            <div>Matches: <b>{seasonSummary.jeffy.played}</b></div>
+            <div>Avg Score: <b>{seasonSummary.jeffy.played ? (seasonSummary.jeffy.scoreSum/seasonSummary.jeffy.played).toFixed(1) : '-'}</b></div>
+            <div className="muted">BUBBLY points: <b>{state.bubbly.tallies.jeffy.points}</b></div>
+            <div className="muted">Items: {Object.entries(state.bubbly.tallies.jeffy.items||{}).map(([k,v])=>`${k}×${v}`).join(', ') || '-'}</div>
           </div>
-          <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:8}}>
-  <button className="btn" onClick={exportData}>Export data</button>
-  <label className="btn" style={{cursor:'pointer'}}>
-    Import data
-    <input
-      type="file"
-      accept="application/json"
-      style={{display:'none'}}
-      onChange={e => {
-        const file = e.target.files?.[0]
-        if (file) importDataFile(file)
-        e.target.value = '' // reset for next time
+          <div className="card">
+            <h4>Nicky</h4>
+            <div>Wins: <b>{seasonSummary.nicky.wins}</b></div>
+            <div>Matches: <b>{seasonSummary.nicky.played}</b></div>
+            <div>Avg Score: <b>{seasonSummary.nicky.played ? (seasonSummary.nicky.scoreSum/seasonSummary.nicky.played).toFixed(1) : '-'}</b></div>
+            <div className="muted">BUBBLY points: <b>{state.bubbly.tallies.nicky.points}</b></div>
+            <div className="muted">Items: {Object.entries(state.bubbly.tallies.nicky.items||{}).map(([k,v])=>`${k}×${v}`).join(', ') || '-'}</div>
+          </div>
+        </div>
+
+        <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:8}}>
+          <button className="btn" onClick={exportData}>Export data</button>
+          <label className="btn" style={{cursor:'pointer'}}>
+            Import data
+            <input
+              type="file"
+              accept="application/json"
+              style={{display:'none'}}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) importDataFile(file)
+                e.target.value = '' // reset for next time
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="muted">BUBBLY pool remaining: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}</div>
+      </Section>
+    )}
+
+    {/* BUBBLY */}
+    {view === 'bubbly' && (
+      <Section
+        title="BUBBLY"
+        right={
+          <select value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
+            <option value="jeffy">Jeffy</option>
+            <option value="nicky">Nicky</option>
+          </select>
+        }
+      >
+        <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+          <button className="btn" onClick={doBubbly}>BUBBLY</button>
+          <button className="btn secondary" onClick={undoLastBubbly}>Undo previous BUBBLY</button>
+        </div>
+
+        {bubblyResult && (
+          <div style={{marginTop:'.75rem'}}>
+            <div>Selected: <b>{bubblyResult.label}</b> ({bubblyResult.type}{bubblyResult.delta?`, delta ${bubblyResult.delta}`:''})</div>
+            <div className="muted">Assigned to: {assignTo}</div>
+          </div>
+        )}
+
+        <div style={{marginTop:'1rem'}} className="muted">
+          Remaining items in pool: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}
+        </div>
+        <details style={{marginTop:'.5rem'}}>
+          <summary>View recent BUBBLY history</summary>
+          <ul>
+            {[...state.bubbly.history].slice(-15).reverse().map((h,i)=>(
+              <li key={i}>
+                {new Date(h.timestamp).toLocaleString()} — {h.winnerId} got <b>{h.itemLabel}</b> {h.type==='points'?`(${h.delta>0?'+':''}${h.delta})`:''}
+              </li>
+            ))}
+          </ul>
+        </details>
+      </Section>
+    )}
+
+    {/* Render the full-screen "Other" picker sheet once, at root level */}
+    <OtherPickerSheet
+      open={!!openOther}
+      initial={openOther?.values || []}
+      onClose={()=>setOpenOther(null)}
+      onSave={(vals)=>{
+        if (openOther) {
+          const { idx } = openOther;
+          setOtherValues(idx, vals); // saves array of tokens
+        }
+        setOpenOther(null);
       }}
     />
-  </label>
-</div>
-          <div className="muted">BUBBLY pool remaining: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}</div>
-        </Section>
-      )}
+  </div>
+)
 
-      {/* BUBBLY */}
-      {view==='bubbly' && (
-        <Section
-          title="BUBBLY"
-          right={
-            <select value={assignTo} onChange={e=>setAssignTo(e.target.value)}>
-              <option value="jeffy">Jeffy</option>
-              <option value="nicky">Nicky</option>
-            </select>
-          }
-        >
-          <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-            <button className="btn" onClick={doBubbly}>BUBBLY</button>
-            <button className="btn secondary" onClick={undoLastBubbly}>Undo previous BUBBLY</button>
-          </div>
-
-          {bubblyResult && (
-            <div style={{marginTop:'.75rem'}}>
-              <div>Selected: <b>{bubblyResult.label}</b> ({bubblyResult.type}{bubblyResult.delta?`, delta ${bubblyResult.delta}`:''})</div>
-              <div className="muted">Assigned to: {assignTo}</div>
-            </div>
-          )}
-
-          <div style={{marginTop:'1rem'}} className="muted">
-            Remaining items in pool: {state.bubbly.pool.reduce((s,i)=>s+i.qty,0)}
-          </div>
-          <details style={{marginTop:'.5rem'}}>
-            <summary>View recent BUBBLY history</summary>
-            <ul>
-              {[...state.bubbly.history].slice(-15).reverse().map((h,i)=>(
-                <li key={i}>
-                  {new Date(h.timestamp).toLocaleString()} — {h.winnerId} got <b>{h.itemLabel}</b> {h.type==='points'?`(${h.delta>0?'+':''}${h.delta})`:''}
-                </li>
-              ))}
-            </ul>
-          </details>
-        </Section>
-      )}
-    </div>
-  )
-}
 // Export all app data to a JSON file
 function exportData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
