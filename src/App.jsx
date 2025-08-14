@@ -187,98 +187,114 @@ export default function App() {
   }
 
   function ScoreBlock({ title, holes }) {
-    const s0 = holes[0]-1
-    return (
-      <div className="card" style={{overflowX:'auto'}}>
-        <h4 style={{marginTop:0}}>{title}</h4>
-        {/* Scores */}
-        <table>
-          <thead>
-            <tr>
-              <th style={{width:110}}>Name</th>
-              {holes.map(h=><th key={h}>{h}</th>)}
-              {title==='Front 9' ? <th>Front</th> : (<><th>Back</th><th>Total</th></>)}
-            </tr>
-          </thead>
-          <tbody>
-            {PLAYERS.map(p=>(
-              <tr key={p.id}>
-                <td style={{fontWeight:700}}>{p.name}</td>
-                {holes.map((h,i)=>(
-                  <td key={h}>
-                    <select
-                      value={matchForm.players[p.id].holes[s0+i]}
-                      onChange={e=>setHole(p.id, s0+i, e.target.value)}
-                      style={{width:'3.6rem'}}
-                    >
-                      {SCORE_OPTS.map(opt=>(
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </td>
-                ))}
-                {title==='Front 9'
-                  ? <td><b>{p.id==='nicky'
-                        ? matchForm.players.nicky.holes.slice(0,9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                        : matchForm.players.jeffy.holes.slice(0,9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                      }</b></td>
-                  : <>
-                      <td><b>{p.id==='nicky'
-                        ? matchForm.players.nicky.holes.slice(9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                        : matchForm.players.jeffy.holes.slice(9).reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                      }</b></td>
-                      <td><b>{p.id==='nicky'
-                        ? matchForm.players.nicky.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                        : matchForm.players.jeffy.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)
-                      }</b></td>
-                    </>
-                }
-              </tr>
-            ))}
-            {/* CTP row */}
-            <tr>
-              <td style={{fontWeight:700}}>CTP</td>
-              {holes.map((h,i)=>{
-                const idx = s0+i
-                const val = matchForm.ctpPerHole[idx]
-                return (
-                  <td key={h}>
-                    <select value={val} onChange={e=>setCTP(idx, e.target.value)} style={{width:'6.6rem'}}>
-                      {CTP_OPTS.map(o=><option key={o.v} value={o.v}>{o.label}</option>)}
-                    </select>
-                  </td>
-                )
-              })}
-              {title==='Front 9' ? <td /> : <><td /><td /></>}
-            </tr>
-            {/* Other row (multi-select) */}
-            <tr>
-              <td style={{fontWeight:700}}>Other</td>
-              {holes.map((h,i)=>{
-                const idx = s0+i
-                const selected = matchForm.otherPerHole[idx] || []
-                return (
-                  <td key={h}>
-                    <select
-                      multiple
-                      value={selected}
-                      onChange={e=>setOtherMulti(idx, e.target.selectedOptions)}
-                      style={{width:'6.6rem'}}
-                    >
-                      {OTHER_TOKENS.map(tok=>(
-                        <option key={tok} value={tok}>{tok}</option>
-                      ))}
-                    </select>
-                  </td>
-                )
-              })}
-              {title==='Front 9' ? <td /> : <><td /><td /></>}
-            </tr>
-          </tbody>
-        </table>
+  const s0 = holes[0] - 1;
+
+  const TotalStrip = ({ which }) => (
+    <div className="totals-row">
+      <div className="totals-title">{title === 'Front 9' ? 'Front totals' : 'Back & overall'}</div>
+      <div className="totals-cells">
+        <div>
+          <div className="muted">Nicky</div>
+          <b>
+            {which === 'front'
+              ? matchForm.players.nicky.holes.slice(0, 9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)
+              : matchForm.players.nicky.holes.slice(9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)}
+          </b>
+          {which === 'back' && (
+            <div className="muted small">Total: <b>{matchForm.players.nicky.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b></div>
+          )}
+        </div>
+        <div>
+          <div className="muted">Jeffy</div>
+          <b>
+            {which === 'front'
+              ? matchForm.players.jeffy.holes.slice(0, 9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)
+              : matchForm.players.jeffy.holes.slice(9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)}
+          </b>
+          {which === 'back' && (
+            <div className="muted small">Total: <b>{matchForm.players.jeffy.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b></div>
+          )}
+        </div>
       </div>
-    )
-  }
+    </div>
+  );
+
+  return (
+    <div className="card">
+      <h4 style={{marginTop:0}}>{title}</h4>
+
+      {/* header */}
+      <div className="vhead vrow">
+        <div>Hole</div>
+        <div>Nicky</div>
+        <div>Jeffy</div>
+        <div>CTP</div>
+        <div>Other</div>
+      </div>
+
+      {/* rows */}
+      {holes.map((h, i) => {
+        const idx = s0 + i;
+        const ctpVal = matchForm.ctpPerHole[idx];
+        const otherVals = matchForm.otherPerHole[idx] || [];
+        return (
+          <div className="vrow" key={h}>
+            <div className="holecell">{h}</div>
+
+            {/* Nicky score */}
+            <div>
+              <select
+                value={matchForm.players.nicky.holes[idx]}
+                onChange={(e) => setHole('nicky', idx, e.target.value)}
+              >
+                {SCORE_OPTS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Jeffy score */}
+            <div>
+              <select
+                value={matchForm.players.jeffy.holes[idx]}
+                onChange={(e) => setHole('jeffy', idx, e.target.value)}
+              >
+                {SCORE_OPTS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* CTP */}
+            <div>
+              <select value={ctpVal} onChange={(e)=>setCTP(idx, e.target.value)}>
+                {CTP_OPTS.map((o) => (
+                  <option key={o.v} value={o.v}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Other (multi) */}
+            <div>
+              <select
+                multiple
+                value={otherVals}
+                onChange={(e)=>setOtherMulti(idx, e.target.selectedOptions)}
+              >
+                {OTHER_TOKENS.map((tok) => (
+                  <option key={tok} value={tok}>{tok}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* totals strip */}
+      <TotalStrip which={title === 'Front 9' ? 'front' : 'back'} />
+    </div>
+  );
+}
 
   // Summary (season)
   const seasonSummary = useMemo(() => {
