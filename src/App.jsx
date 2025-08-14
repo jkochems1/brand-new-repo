@@ -185,8 +185,26 @@ export default function App() {
     }
     return tallies
   }
+function ScorePicker({ value, onChange }) {
+  // value is "", "1".."10"
+  const toNum = (t) => (t === '' ? 0 : Number(t));
+  const toTok = (n) => (n <= 0 ? '' : String(Math.min(10, n)));
 
-  function ScoreBlock({ title, holes }) {
+  const dec = () => onChange(toTok(toNum(value) - 1));
+  const inc = () => onChange(toTok(toNum(value) + 1));
+
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'28px 1fr 28px', gap:6, alignItems:'center'}}>
+      <button type="button" className="chip" onClick={dec} aria-label="decrease">−</button>
+      <select value={value} onChange={(e)=>onChange(e.target.value)}>
+        {SCORE_OPTS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+      </select>
+      <button type="button" className="chip" onClick={inc} aria-label="increase">+</button>
+    </div>
+  );
+}
+
+function ScoreBlock({ title, holes }) {
   const s0 = holes[0] - 1;
 
   const TotalStrip = ({ which }) => (
@@ -201,7 +219,9 @@ export default function App() {
               : matchForm.players.nicky.holes.slice(9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)}
           </b>
           {which === 'back' && (
-            <div className="muted small">Total: <b>{matchForm.players.nicky.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b></div>
+            <div className="muted small">
+              Total: <b>{matchForm.players.nicky.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b>
+            </div>
           )}
         </div>
         <div>
@@ -212,7 +232,9 @@ export default function App() {
               : matchForm.players.jeffy.holes.slice(9).reduce((s, t) => s + (t === '' ? 0 : Number(t)), 0)}
           </b>
           {which === 'back' && (
-            <div className="muted small">Total: <b>{matchForm.players.jeffy.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b></div>
+            <div className="muted small">
+              Total: <b>{matchForm.players.jeffy.holes.reduce((s,t)=>s+(t===''?0:Number(t)),0)}</b>
+            </div>
           )}
         </div>
       </div>
@@ -223,8 +245,8 @@ export default function App() {
     <div className="card">
       <h4 style={{marginTop:0}}>{title}</h4>
 
-      {/* header */}
-      <div className="vhead vrow">
+      {/* sticky subheader */}
+      <div className="vhead vrow sticky-subhead">
         <div>Hole</div>
         <div>Nicky</div>
         <div>Jeffy</div>
@@ -241,28 +263,20 @@ export default function App() {
           <div className="vrow" key={h}>
             <div className="holecell">{h}</div>
 
-            {/* Nicky score */}
+            {/* Nicky score with +/- */}
             <div>
-              <select
+              <ScorePicker
                 value={matchForm.players.nicky.holes[idx]}
-                onChange={(e) => setHole('nicky', idx, e.target.value)}
-              >
-                {SCORE_OPTS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+                onChange={(tok)=>setHole('nicky', idx, tok)}
+              />
             </div>
 
-            {/* Jeffy score */}
+            {/* Jeffy score with +/- */}
             <div>
-              <select
+              <ScorePicker
                 value={matchForm.players.jeffy.holes[idx]}
-                onChange={(e) => setHole('jeffy', idx, e.target.value)}
-              >
-                {SCORE_OPTS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+                onChange={(tok)=>setHole('jeffy', idx, tok)}
+              />
             </div>
 
             {/* CTP */}
@@ -290,11 +304,12 @@ export default function App() {
         );
       })}
 
-      {/* totals strip */}
+      {/* totals */}
       <TotalStrip which={title === 'Front 9' ? 'front' : 'back'} />
     </div>
   );
 }
+
 
   // Summary (season)
   const seasonSummary = useMemo(() => {

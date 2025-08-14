@@ -13,7 +13,7 @@
   <style>
     /* --- Mid-century modern theme --- */
     :root{
-      --navy:#0b2845; --sage:#7fa08a; --cream:#f7f5ef; --ink:#1e1f20; --muted:#6c6f75; --accent:#e59f71; --card:#ffffff;
+      --navy:#0b2845; --sage:#7fa08a; --cream:#f7d87c; --ink:#1e1f20; --muted:#6c6f75; --accent:#e59f71; --card:#ffffff;
     }
     html, body, #root { height:100%; margin:0; background:var(--cream); color:var(--ink); font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, "Inter", system-ui, Arial, sans-serif; }
 
@@ -63,6 +63,36 @@
       .save-inline{ display:none; }
       .vrow{ grid-template-columns:48px 1fr 1fr 92px 1.1fr; gap:6px; }
     }
+    /* Sticky subheader for the vertical grid */
+.sticky-subhead {
+  position: sticky;
+  top: 54px;               /* sits below your sticky nav */
+  z-index: 12;
+  background: var(--cream);
+  padding: 6px 0;
+  box-shadow: 0 1px 0 rgba(0,0,0,.06);
+}
+
+/* Tiny round +/- buttons */
+.chip{
+  height: 32px; width: 32px; line-height: 30px;
+  border-radius: 999px; border: 1px solid rgba(11,40,69,.18);
+  background: #fff; color: var(--navy);
+  font-size: 18px; font-weight: 700;
+}
+.chip:active{ transform: translateY(1px); }
+
+/* Keep selects full-width inside the three-column picker */
+.vrow select{
+  width: 100%;
+}
+
+/* Slightly tighter on phones */
+@media (max-width: 740px){
+  .sticky-subhead { top: 52px; }
+  .chip{ height: 30px; width: 30px; line-height: 28px; }
+}
+
   </style>
 </head>
 <div id="root"></div>

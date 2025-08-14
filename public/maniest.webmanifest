@@ -8,7 +8,7 @@
   "theme_color": "#0B2845",
   "icons": [
     {
-      "src": "icons/bubbly-icon-192.png",
+      "src": "./bubbly-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
