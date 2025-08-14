@@ -92,6 +92,31 @@
   .sticky-subhead { top: 52px; }
   .chip{ height: 30px; width: 30px; line-height: 28px; }
 }
+/* Score picker with +/- only (no dropdown) */
+.scorepicker{
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 6px;
+}
+.score-readout{
+  height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(11,40,69,.18);
+  background: #fff;
+  font-weight: 700; color: var(--navy);
+  font-size: 16px;
+}
+
+/* tiny round +/- buttons you already have */
+.chip{
+  height: 32px; width: 32px; line-height: 30px;
+  border-radius: 999px; border: 1px solid rgba(11,40,69,.18);
+  background: #fff; color: var(--navy);
+  font-size: 18px; font-weight: 700;
+}
+.chip:active{ transform: translateY(1px); }
 
   </style>
 </head>
