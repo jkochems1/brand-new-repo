@@ -103,6 +103,47 @@
     .save-inline{ display:none; } /* hide inline Save on phones */
   }
 </style>
+/* Vertical table rows */
+.vrow{
+  display: grid;
+  grid-template-columns: 56px 1fr 1fr 110px 120px; /* Hole | Nicky | Jeffy | CTP | Other */
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.vhead{ font-weight: 700; color: var(--navy); border-bottom: 2px solid rgba(0,0,0,.08); }
+.holecell{
+  font-weight: 700; color: var(--navy);
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Form controls inside vertical rows */
+.vrow select{
+  width: 100%;
+  height: 36px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(11,40,69,.18);
+  background: #fff;
+}
+
+/* Totals strip */
+.totals-row{
+  display:flex; justify-content: space-between; align-items:center;
+  padding-top: 8px;
+}
+.totals-title{ font-weight:700; color: var(--navy); }
+.totals-cells{ display:flex; gap:16px; }
+.small{ font-size: 12px; }
+
+/* Mobile: slightly tighter layout */
+@media (max-width: 740px){
+  .vrow{
+    grid-template-columns: 48px 1fr 1fr 92px 1.1fr;
+    gap: 6px;
+  }
+}
 
 </head>
 <body>
